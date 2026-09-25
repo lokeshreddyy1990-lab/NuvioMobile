@@ -382,6 +382,7 @@
     <string name="compose_settings_page_poster_customization">Poster-Anpassung</string>
     <string name="compose_settings_page_root">Einstellungen</string>
     <string name="compose_settings_page_supporters_contributors">Unterstützer &amp; Mitwirkende</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">TMDB-Anreicherung</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_root_about_section">ÜBER</string>
@@ -537,6 +538,7 @@
     <string name="settings_integrations_section_title">INTEGRATIONEN</string>
     <string name="settings_integrations_tmdb_description">Erweitere Detailseiten mit TMDB-Artwork, Credits, Episoden-Metadaten und mehr.</string>
     <string name="settings_integrations_mdblist_description">Füge IMDb, Rotten Tomatoes, Metacritic und andere externe Bewertungen zu Detailseiten hinzu.</string>
+    <string name="settings_integrations_telegram_description">Verbinde dein Telegram-Konto, um Medien zu streamen</string>
     <string name="settings_mdb_add_api_key_first">Füge unten deinen MDBList-API-Schlüssel hinzu, bevor du Bewertungen aktivierst.</string>
     <string name="settings_mdb_api_key_description">Hole dir einen Schlüssel unter https://mdblist.com/preferences und füge ihn hier ein.</string>
     <string name="settings_mdb_api_key_label">API-Schlüssel</string>

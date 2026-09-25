@@ -519,6 +519,7 @@
     <string name="compose_settings_page_streams">Luồng</string>
     <string name="settings_appearance_section_streams">NGUỒN PHÁT</string>
     <string name="compose_settings_page_supporters_contributors">Người tài trợ &amp; Người đóng góp</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">Bổ sung dữ liệu TMDB</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_page_tracking">Theo dõi</string>
@@ -845,6 +846,7 @@
     <string name="settings_integrations_tmdb_description">Kiểm soát việc bổ sung siêu dữ liệu</string>
     <string name="settings_integrations_mdblist_description">Nhà cung cấp điểm đánh giá bên ngoài</string>
     <string name="settings_integrations_debrid_description">Kết nối tài khoản để liên kết và truy cập thư viện</string>
+    <string name="settings_integrations_telegram_description">Kết nối tài khoản Telegram của bạn để phát media</string>
     <string name="settings_debrid_section_title">DỊCH VỤ LIÊN KẾT</string>
     <string name="settings_debrid_experimental_notice">Các tích hợp này đang thử nghiệm và có thể được giữ lại, thay đổi hoặc gỡ bỏ sau này.</string>
     <string name="settings_debrid_cloud_library">Thư viện đám mây</string>

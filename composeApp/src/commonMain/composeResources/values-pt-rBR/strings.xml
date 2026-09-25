@@ -400,6 +400,7 @@
     <string name="compose_settings_page_poster_customization">Estilo do Card de Pôster</string>
     <string name="compose_settings_page_root">Configurações</string>
     <string name="compose_settings_page_supporters_contributors">Apoiadores &amp; Contribuidores</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">Enriquecimento do TMDB</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_root_about_section">SOBRE</string>
@@ -599,6 +600,7 @@
     <string name="settings_integrations_tmdb_description">Controles de enriquecimento de metadados</string>
     <string name="settings_integrations_mdblist_description">Provedores externos de classificações</string>
     <string name="settings_integrations_debrid_description">Fontes de contas em nuvem experimentais</string>
+    <string name="settings_integrations_telegram_description">Conecte sua conta do Telegram para reproduzir mídia</string>
     <string name="settings_debrid_section_title">DEBRID</string>
     <string name="settings_debrid_experimental_notice">O suporte a Debrid é experimental e pode ser mantido, alterado ou removido posteriormente.</string>
     <string name="settings_debrid_enable">Ativar fontes</string>

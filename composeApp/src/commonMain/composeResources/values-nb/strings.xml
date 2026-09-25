@@ -641,6 +641,7 @@
     <string name="compose_settings_page_root">Innstillinger</string>
     <string name="compose_settings_page_streams">Strømmer</string>
     <string name="compose_settings_page_supporters_contributors">Støttespillere &amp; bidragsytere</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">TMDB-berikelse</string>
     <string name="compose_settings_page_tracking">Sporing</string>
     <string name="compose_settings_page_trakt">Trakt</string>
@@ -1580,6 +1581,7 @@ Du bruker denne funksjonen helt på eget ansvar. P2P kan deaktiveres når som he
     <string name="settings_homescreen_summary_hint">Åpne en katalog kun når du skal gi nytt navn eller endre rekkefølge.</string>
     <string name="settings_homescreen_visible">Synlig</string>
     <string name="settings_integrations_debrid_description">Koble til kontoer for lenker og bibliotektilgang</string>
+    <string name="settings_integrations_telegram_description">Koble til Telegram-kontoen din for å streame medier</string>
     <string name="settings_integrations_mdblist_description">Eksterne vurderingsleverandører</string>
     <string name="settings_integrations_section_title">INTEGRASJONER</string>
     <string name="settings_integrations_tmdb_description">Metadata-berikelse-kontroller</string>

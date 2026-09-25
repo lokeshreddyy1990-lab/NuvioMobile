@@ -430,6 +430,7 @@
     <string name="compose_settings_page_streams">Streams</string>
     <string name="settings_appearance_section_streams">STREAMS</string>
     <string name="compose_settings_page_supporters_contributors">Apoiantes e colaboradores</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">Enriquecimento TMDB</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_root_about_section">ACERCA</string>
@@ -645,6 +646,7 @@
     <string name="settings_integrations_tmdb_description">Controlos de enriquecimento de metadados</string>
     <string name="settings_integrations_mdblist_description">Fornecedores de classificações externas</string>
     <string name="settings_integrations_debrid_description">Liga contas para obter links e acesso à biblioteca</string>
+    <string name="settings_integrations_telegram_description">Liga a tua conta Telegram para reproduzir conteúdo</string>
     <string name="settings_debrid_section_title">SERVIÇOS LIGADOS</string>
     <string name="settings_debrid_experimental_notice">Estas integrações são experimentais e podem ser mantidas, alteradas ou removidas mais tarde.</string>
     <string name="settings_debrid_cloud_library">Biblioteca na nuvem</string>

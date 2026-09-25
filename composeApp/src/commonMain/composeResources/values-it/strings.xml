@@ -243,6 +243,7 @@
   <string name="compose_settings_page_poster_customization">Personalizzazione Poster</string>
   <string name="compose_settings_page_root">Impostazioni</string>
   <string name="compose_settings_page_supporters_contributors">Sostenitori e Collaboratori</string>
+  <string name="compose_settings_page_telegram">Telegram</string>
   <string name="compose_settings_page_tmdb_enrichment">Arricchimento TMDB</string>
   <string name="compose_settings_page_trakt">Trakt</string>
   <string name="compose_settings_root_about_section">INFORMAZIONI</string>
@@ -1325,6 +1326,7 @@
   <string name="settings_continue_watching_use_episode_thumbnails_description">Prediligi le miniature dell'episodio quando disponibili.</string>
   <string name="settings_continue_watching_use_episode_thumbnails_title">Prediligi miniature episodio in Inizia a guardare</string>
   <string name="settings_integrations_debrid_description">Connetti gli account per i link e l'accesso alla libreria</string>
+  <string name="settings_integrations_telegram_description">Connetti il tuo account Telegram per lo streaming dei contenuti</string>
   <string name="settings_debrid_section_title">SERVIZI CONNESSI</string>
   <string name="settings_debrid_experimental_notice">Queste integrazioni sono sperimentali e potrebbero essere mantenute, modificate o rimosse in seguito.</string>
   <string name="settings_debrid_cloud_library">Libreria cloud</string>

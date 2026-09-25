@@ -514,6 +514,7 @@
     <string name="compose_settings_page_streams">Източници</string>
     <string name="settings_appearance_section_streams">ИЗТОЧНИЦИ</string>
     <string name="compose_settings_page_supporters_contributors">Поддръжници и сътрудници</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">TMDB обогатяване</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_page_tracking">Проследяване</string>
@@ -810,6 +811,7 @@
     <string name="settings_integrations_tmdb_description">Контроли за обогатяване на метаданни</string>
     <string name="settings_integrations_mdblist_description">Доставчици на външни оценки</string>
     <string name="settings_integrations_debrid_description">Свързвай акаунти за връзки и достъп до библиотека</string>
+    <string name="settings_integrations_telegram_description">Свържи Telegram акаунта си за стрийминг на медия</string>
     <string name="settings_debrid_section_title">СВЪРЗАНИ УСЛУГИ</string>
     <string name="settings_debrid_experimental_notice">Тези интеграции са експериментални и могат да бъдат запазени, променени или премахнати по-късно.</string>
     <string name="settings_debrid_cloud_library">Облачна библиотека</string>

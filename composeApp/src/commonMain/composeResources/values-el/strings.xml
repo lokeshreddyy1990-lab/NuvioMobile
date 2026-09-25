@@ -282,6 +282,7 @@
     <string name="compose_settings_page_privacy_policy">Πολιτική απορρήτου</string>
     <string name="compose_settings_page_root">Ρυθμίσεις</string>
     <string name="compose_settings_page_supporters_contributors">Υποστηρικτές &amp; Συνεισφέροντες</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">Εμπλουτισμός TMDB</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_page_tracking">Παρακολούθηση</string>
@@ -1983,6 +1984,7 @@
     <string name="settings_fusion_badges_summary">%1$d/%2$d URL, %3$d ενεργά σήματα Fusion</string>
     <string name="settings_hide_secret">Απόκρυψη τιμής</string>
     <string name="settings_integrations_debrid_description">Συνδέστε λογαριασμούς για συνδέσμους και πρόσβαση στη βιβλιοθήκη</string>
+    <string name="settings_integrations_telegram_description">Συνδέστε τον λογαριασμό σας Telegram για streaming πολυμέσων</string>
     <string name="settings_licenses_attributions_exoplayer_body">Χρησιμοποιείται για αναπαραγωγή σε εκδόσεις Android.</string>
     <string name="settings_licenses_attributions_exoplayer_license">Αδειοδοτείται υπό την Apache License, Έκδοση 2.0.</string>
     <string name="settings_licenses_attributions_exoplayer_title">AndroidX Media3 ExoPlayer 1.8.0</string>

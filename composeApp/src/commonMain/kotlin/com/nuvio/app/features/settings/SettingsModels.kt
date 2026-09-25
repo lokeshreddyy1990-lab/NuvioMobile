@@ -29,6 +29,7 @@ import nuvio.composeapp.generated.resources.compose_settings_page_poster_customi
 import nuvio.composeapp.generated.resources.compose_settings_page_root
 import nuvio.composeapp.generated.resources.compose_settings_page_streams
 import nuvio.composeapp.generated.resources.compose_settings_page_supporters_contributors
+import nuvio.composeapp.generated.resources.compose_settings_page_telegram
 import nuvio.composeapp.generated.resources.compose_settings_page_tmdb_enrichment
 import nuvio.composeapp.generated.resources.compose_settings_page_trakt
 import nuvio.composeapp.generated.resources.compose_settings_page_tracking
@@ -147,6 +148,11 @@ internal enum class SettingsPage(
     ),
     Debrid(
         titleRes = Res.string.compose_settings_page_debrid,
+        category = SettingsCategory.General,
+        parentPage = Integrations,
+    ),
+    Telegram(
+        titleRes = Res.string.compose_settings_page_telegram,
         category = SettingsCategory.General,
         parentPage = Integrations,
     ),

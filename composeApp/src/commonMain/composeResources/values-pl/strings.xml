@@ -411,6 +411,7 @@
     <string name="compose_settings_page_poster_customization">Personalizacja plakatów</string>
     <string name="compose_settings_page_root">Ustawienia</string>
     <string name="compose_settings_page_supporters_contributors">Wspierający i współtwórcy</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">Wzbogacanie TMDB</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_root_about_section">O APLIKACJI</string>
@@ -633,6 +634,7 @@
     <string name="settings_integrations_tmdb_description">Wzbogać strony szczegółów grafikami TMDB, obsadą, metadanymi odcinków i nie tylko.</string>
     <string name="settings_integrations_mdblist_description">Dodaj oceny IMDb, Rotten Tomatoes, Metacritic i inne zewnętrzne oceny do stron szczegółów.</string>
     <string name="settings_integrations_debrid_description">Eksperymentalne źródła z kont chmurowych</string>
+    <string name="settings_integrations_telegram_description">Połącz konto Telegram, aby strumieniować multimedia</string>
     <string name="settings_debrid_section_title">DEBRID</string>
     <string name="settings_debrid_experimental_notice">Obsługa Debrid jest eksperymentalna i może zostać zachowana, zmieniona lub usunięta w przyszłości.</string>
     <string name="settings_debrid_cloud_library">Biblioteka w chmurze</string>

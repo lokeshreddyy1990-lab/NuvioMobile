@@ -1,13 +1,17 @@
 package com.nuvio.app.features.settings
 
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Send
 import nuvio.composeapp.generated.resources.compose_settings_page_debrid
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_settings_page_mdblist_ratings
+import nuvio.composeapp.generated.resources.compose_settings_page_telegram
 import nuvio.composeapp.generated.resources.compose_settings_page_tmdb_enrichment
 import nuvio.composeapp.generated.resources.settings_integrations_mdblist_description
 import nuvio.composeapp.generated.resources.settings_integrations_debrid_description
 import nuvio.composeapp.generated.resources.settings_integrations_section_title
+import nuvio.composeapp.generated.resources.settings_integrations_telegram_description
 import nuvio.composeapp.generated.resources.settings_integrations_tmdb_description
 import org.jetbrains.compose.resources.stringResource
 
@@ -16,6 +20,7 @@ internal fun LazyListScope.integrationsContent(
     onTmdbClick: () -> Unit,
     onMdbListClick: () -> Unit,
     onDebridClick: () -> Unit,
+    onTelegramClick: () -> Unit,
 ) {
     item {
         SettingsSection(
@@ -44,6 +49,14 @@ internal fun LazyListScope.integrationsContent(
                     description = stringResource(Res.string.settings_integrations_debrid_description),
                     isTablet = isTablet,
                     onClick = onDebridClick,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = stringResource(Res.string.compose_settings_page_telegram),
+                    description = stringResource(Res.string.settings_integrations_telegram_description),
+                    icon = Icons.Rounded.Send,
+                    isTablet = isTablet,
+                    onClick = onTelegramClick,
                 )
             }
         }

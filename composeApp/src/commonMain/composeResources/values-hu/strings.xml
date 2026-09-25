@@ -393,6 +393,7 @@
     <string name="compose_settings_page_poster_customization">Poszterkártya stílusa</string>
     <string name="compose_settings_page_root">Beállítások</string>
     <string name="compose_settings_page_supporters_contributors">Támogatók és közreműködők</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">TMDB adatbővítés</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_root_about_section">NÉVJEGY</string>
@@ -590,6 +591,7 @@
     <string name="settings_integrations_tmdb_description">Metaadat-bővítés vezérlői</string>
     <string name="settings_integrations_mdblist_description">Külső értékelési szolgáltatók</string>
     <string name="settings_integrations_debrid_description">Kísérleti felhőalapú fiókforrások</string>
+    <string name="settings_integrations_telegram_description">Kapcsold össze a Telegram-fiókodat médiastreameléshez</string>
     <string name="settings_debrid_section_title">DEBRID</string>
     <string name="settings_debrid_experimental_notice">A Debrid támogatás kísérleti jellegű; a későbbiekben megtartható, módosítható vagy eltávolítható.</string>
     <string name="settings_debrid_enable">Források engedélyezése</string>
