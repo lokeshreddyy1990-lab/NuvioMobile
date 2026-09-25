@@ -44,6 +44,12 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
     @get:Input
     abstract val tmdbApiKey: Property<String>
 
+    @get:Input
+    abstract val telegramApiId: Property<String>
+
+    @get:Input
+    abstract val telegramApiHash: Property<String>
+
     @TaskAction
     fun generate() {
         val props = Properties()
@@ -204,6 +210,22 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 """.trimMargin()
             )
         }
+
+        // TELEGRAM_API_ID must be emitted unquoted so it stays an Int (see TelegramRepository).
+        val telegramApiIdValue = telegramApiId.get().trim().toIntOrNull() ?: 0
+        outDir.resolve("com/nuvio/app/features/telegram").apply {
+            mkdirs()
+            resolve("TelegramConfig.kt").writeText(
+                """
+                |package com.nuvio.app.features.telegram
+                |
+                |object TelegramConfig {
+                |    const val API_ID = $telegramApiIdValue
+                |    const val API_HASH = "${telegramApiHash.get()}"
+                |}
+                """.trimMargin()
+            )
+        }
     }
 }
 
@@ -323,6 +345,8 @@ val generateRuntimeConfigs = tasks.register<GenerateRuntimeConfigsTask>("generat
     supabaseFallbackUrl.set(runtimeConfigValue("NUVIO_SUPABASE_FALLBACK_URL"))
     sentryDsn.set(runtimeConfigValue("SENTRY_DSN"))
     tmdbApiKey.set(runtimeConfigValue("TMDB_API_KEY"))
+    telegramApiId.set(runtimeConfigValue("TELEGRAM_API_ID"))
+    telegramApiHash.set(runtimeConfigValue("TELEGRAM_API_HASH"))
     sentryEnvironment.set(
         when {
             requestedGradleTasks.any { "benchmark" in it } -> "benchmark"
@@ -373,6 +397,10 @@ kotlin {
                 }
                 create("appicon") {
                     defFile(project.file("src/nativeInterop/cinterop/appicon.def"))
+                    compilerOpts("-I${project.projectDir}/src/nativeInterop/cinterop")
+                }
+                create("iostelegram") {
+                    defFile(project.file("src/nativeInterop/cinterop/iostelegram.def"))
                     compilerOpts("-I${project.projectDir}/src/nativeInterop/cinterop")
                 }
                 if (iosDistribution == "full") {
