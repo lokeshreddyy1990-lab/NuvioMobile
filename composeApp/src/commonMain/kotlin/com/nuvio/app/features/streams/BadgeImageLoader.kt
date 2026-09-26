@@ -19,12 +19,17 @@ internal object BadgeImageLoader {
     @Volatile
     private var instance: ImageLoader? = null
 
-    fun get(context: PlatformContext): ImageLoader = synchronized(lock) {
-        instance ?: ImageLoader.Builder(context)
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .crossfade(false)
-            .build()
-            .also { instance = it }
+    fun get(context: PlatformContext): ImageLoader {
+        instance?.let { return it }
+        synchronized(lock) {
+            instance?.let { return it }
+            val loader = ImageLoader.Builder(context)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .crossfade(false)
+                .build()
+            instance = loader
+            return loader
+        }
     }
 }
