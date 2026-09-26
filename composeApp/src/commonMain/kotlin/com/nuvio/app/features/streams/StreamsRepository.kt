@@ -15,6 +15,11 @@ import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.plugins.PluginRepository
 import com.nuvio.app.features.plugins.pluginContentId
 import com.nuvio.app.features.plugins.PluginsUiState
+import com.nuvio.app.features.telegram.TelegramRepository
+import com.nuvio.app.features.telegram.TelegramStreamProvider
+import com.nuvio.app.features.telegram.telegramErrorStreamGroup
+import com.nuvio.app.features.telegram.telegramLoadingStreamGroup
+import com.nuvio.app.features.telegram.telegramStreamGroup
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,7 +52,7 @@ object StreamsRepository {
     ): String =
         "$type::$videoId::$season::$episode::$manualSelection"
 
-    fun load(type: String, videoId: String, parentMetaId: String? = null, season: Int? = null, episode: Int? = null, manualSelection: Boolean = false) {
+    fun load(type: String, videoId: String, parentMetaId: String? = null, season: Int? = null, episode: Int? = null, manualSelection: Boolean = false, title: String? = null) {
         PluginRepository.setLocalPluginSearchPaused(false)
         load(
             type = type,
@@ -57,10 +62,11 @@ object StreamsRepository {
             episode = episode,
             manualSelection = manualSelection,
             forceRefresh = false,
+            title = title,
         )
     }
 
-    fun reload(type: String, videoId: String, parentMetaId: String? = null, season: Int? = null, episode: Int? = null, manualSelection: Boolean = false) {
+    fun reload(type: String, videoId: String, parentMetaId: String? = null, season: Int? = null, episode: Int? = null, manualSelection: Boolean = false, title: String? = null) {
         PluginRepository.setLocalPluginSearchPaused(false)
         load(
             type = type,
@@ -70,10 +76,11 @@ object StreamsRepository {
             episode = episode,
             manualSelection = manualSelection,
             forceRefresh = true,
+            title = title,
         )
     }
 
-    private fun load(type: String, videoId: String, parentMetaId: String?, season: Int?, episode: Int?, manualSelection: Boolean, forceRefresh: Boolean) {
+    private fun load(type: String, videoId: String, parentMetaId: String?, season: Int?, episode: Int?, manualSelection: Boolean, forceRefresh: Boolean, title: String?) {
         val pluginUiState = if (AppFeaturePolicy.pluginsEnabled) {
             PluginRepository.initialize()
             PluginRepository.uiState.value
@@ -168,8 +175,15 @@ object StreamsRepository {
             repositories = pluginUiState.repositories,
             groupByRepository = pluginUiState.groupStreamsByRepository,
         )
+        // Telegram is not a Stremio addon, so it is injected as an extra provider group.
+        val telegramSearch = TelegramStreamProvider.resolveSearch(
+            type = type,
+            videoId = videoId,
+            parentMetaId = parentMetaId,
+            explicitTitle = title,
+        )
 
-        if (installedAddons.isEmpty() && pluginProviderGroups.isEmpty()) {
+        if (installedAddons.isEmpty() && pluginProviderGroups.isEmpty() && telegramSearch == null) {
             _uiState.value = StreamsUiState(
                 requestToken = requestToken,
                 isAnyLoading = false,
@@ -193,7 +207,7 @@ object StreamsRepository {
 
         log.d { "Found ${streamAddons.size} addons for stream type=$type id=$videoId" }
 
-        if (streamAddons.isEmpty() && pluginProviderGroups.isEmpty()) {
+        if (streamAddons.isEmpty() && pluginProviderGroups.isEmpty() && telegramSearch == null) {
             _uiState.value = StreamsUiState(
                 requestToken = requestToken,
                 isAnyLoading = false,
@@ -219,7 +233,7 @@ object StreamsRepository {
                 streams = emptyList(),
                 isLoading = true,
             )
-        }, installedAddonOrder)
+        } + if (telegramSearch != null) listOf(telegramLoadingStreamGroup()) else emptyList(), installedAddonOrder)
         val isInitiallyLoading = initialGroups.any { it.isLoading }
         _uiState.value = StreamsUiState(
             requestToken = requestToken,
@@ -239,7 +253,8 @@ object StreamsRepository {
                 .toMutableMap()
             val pluginFirstErrorByAddonId = mutableMapOf<String, String>()
             val totalTasks = streamAddons.size +
-                pluginProviderGroups.sumOf { it.scrapers.size }
+                pluginProviderGroups.sumOf { it.scrapers.size } +
+                (if (telegramSearch != null) 1 else 0)
 
             val installedAddonNames = installedAddonOrder.toSet()
             val installedAddonIds = streamAddons.map { it.addonId }.toSet()
@@ -500,6 +515,32 @@ object StreamsRepository {
                         )
                         publishCompletion(completion)
                     }
+                }
+            }
+
+            if (telegramSearch != null) {
+                val search = telegramSearch
+                launch {
+                    val group = if (TelegramRepository.awaitConnection()) {
+                        runCatchingUnlessCancelled {
+                            TelegramRepository.searchStreams(
+                                title = search.title,
+                                season = season,
+                                episode = episode,
+                            )
+                        }.fold(
+                            onSuccess = { streams -> telegramStreamGroup(streams) },
+                            onFailure = { error ->
+                                log.w(error) { "Telegram stream search failed" }
+                                telegramErrorStreamGroup(error.message)
+                            },
+                        )
+                    } else {
+                        // Not connected: publish an inert group so the loading placeholder drops
+                        // without leaving an empty provider chip behind.
+                        telegramStreamGroup(emptyList())
+                    }
+                    publishCompletion(StreamLoadCompletion.Addon(group))
                 }
             }
 

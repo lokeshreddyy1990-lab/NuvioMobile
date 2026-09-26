@@ -29,6 +29,11 @@ import com.nuvio.app.features.streams.streamAddonInstanceId
 import com.nuvio.app.features.streams.toEmptyStateReason
 import com.nuvio.app.features.streams.toPluginProviderGroups
 import com.nuvio.app.features.streams.toStreamItem
+import com.nuvio.app.features.telegram.TelegramRepository
+import com.nuvio.app.features.telegram.TelegramStreamProvider
+import com.nuvio.app.features.telegram.telegramErrorStreamGroup
+import com.nuvio.app.features.telegram.telegramLoadingStreamGroup
+import com.nuvio.app.features.telegram.telegramStreamGroup
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -236,8 +241,15 @@ object PlayerStreamsRepository {
             repositories = pluginUiState.repositories,
             groupByRepository = pluginUiState.groupStreamsByRepository,
         )
+        // Telegram is not a Stremio addon, so it is injected as an extra provider group.
+        val telegramSearch = TelegramStreamProvider.resolveSearch(
+            type = type,
+            videoId = videoId,
+            parentMetaId = null,
+            explicitTitle = null,
+        )
 
-        if (installedAddons.isEmpty() && pluginProviderGroups.isEmpty()) {
+        if (installedAddons.isEmpty() && pluginProviderGroups.isEmpty() && telegramSearch == null) {
             stateFlow.value = StreamsUiState(
                 isAnyLoading = false,
                 emptyStateReason = com.nuvio.app.features.streams.StreamsEmptyStateReason.NoAddonsInstalled,
@@ -263,7 +275,7 @@ object PlayerStreamsRepository {
                 )
             }
 
-        if (streamAddons.isEmpty() && pluginProviderGroups.isEmpty()) {
+        if (streamAddons.isEmpty() && pluginProviderGroups.isEmpty() && telegramSearch == null) {
             stateFlow.value = StreamsUiState(
                 isAnyLoading = false,
                 emptyStateReason = com.nuvio.app.features.streams.StreamsEmptyStateReason.NoCompatibleAddons,
@@ -286,7 +298,7 @@ object PlayerStreamsRepository {
                 streams = emptyList(),
                 isLoading = true,
             )
-        }, installedAddonOrder)
+        } + if (telegramSearch != null) listOf(telegramLoadingStreamGroup()) else emptyList(), installedAddonOrder)
         val isInitiallyLoading = initialGroups.any { it.isLoading }
         stateFlow.value = StreamsUiState(
             groups = initialGroups,
@@ -301,7 +313,9 @@ object PlayerStreamsRepository {
                 .associate { it.addonId to it.scrapers.size }
                 .toMutableMap()
             val pluginFirstErrorByAddonId = mutableMapOf<String, String>()
-            val totalTasks = streamAddons.size + pluginProviderGroups.sumOf { it.scrapers.size }
+            val totalTasks = streamAddons.size +
+                pluginProviderGroups.sumOf { it.scrapers.size } +
+                (if (telegramSearch != null) 1 else 0)
             val completions = Channel<StreamLoadCompletion>(capacity = Channel.BUFFERED)
             val debridAvailabilityJobs = mutableListOf<Job>()
 
@@ -444,6 +458,32 @@ object PlayerStreamsRepository {
                         )
                         publishCompletion(completion)
                     }
+                }
+            }
+
+            if (telegramSearch != null) {
+                val search = telegramSearch
+                launch {
+                    val group = if (TelegramRepository.awaitConnection()) {
+                        runCatchingUnlessCancelled {
+                            TelegramRepository.searchStreams(
+                                title = search.title,
+                                season = season,
+                                episode = episode,
+                            )
+                        }.fold(
+                            onSuccess = { streams -> telegramStreamGroup(streams) },
+                            onFailure = { error ->
+                                log.w(error) { "Telegram stream search failed" }
+                                telegramErrorStreamGroup(error.message)
+                            },
+                        )
+                    } else {
+                        // Not connected: publish an inert group so the loading placeholder drops
+                        // without leaving an empty provider chip behind.
+                        telegramStreamGroup(emptyList())
+                    }
+                    publishCompletion(StreamLoadCompletion.Addon(group))
                 }
             }
 

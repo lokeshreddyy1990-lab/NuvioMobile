@@ -186,6 +186,7 @@ fun StreamsScreen(
             season = seasonNumber,
             episode = episodeNumber,
             manualSelection = manualSelection,
+            title = title,
         )
     }
 
@@ -221,6 +222,7 @@ fun StreamsScreen(
             season = seasonNumber,
             episode = episodeNumber,
             manualSelection = manualSelection,
+            title = title,
         )
     }
 

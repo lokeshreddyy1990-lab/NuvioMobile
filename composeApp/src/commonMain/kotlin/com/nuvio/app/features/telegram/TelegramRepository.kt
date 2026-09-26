@@ -12,8 +12,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -88,6 +90,27 @@ object TelegramRepository {
                 else -> pollAuthorizationState()
             }
         }
+    }
+
+    /** True when Telegram credentials are present and TDLib can run on this platform. */
+    fun isConfigured(): Boolean =
+        TelegramPlatformClient.isSupported &&
+            TelegramConfig.API_ID > 0 &&
+            TelegramConfig.API_HASH.isNotBlank()
+
+    /**
+     * Waits for Telegram's authorization state to settle and reports whether it is connected.
+     *
+     * The first stream load after app start can race TDLib's startup and observe
+     * [TelegramAuthorizationMode.Starting] even for a persisted session, so callers must await
+     * this instead of reading [uiState] directly.
+     */
+    suspend fun awaitConnection(timeoutMs: Long = TELEGRAM_CONNECTION_TIMEOUT_MS): Boolean {
+        ensureLoaded()
+        val settled = withTimeoutOrNull(timeoutMs) {
+            uiState.first { state -> state.mode != TelegramAuthorizationMode.Starting }
+        }
+        return settled?.isConnected == true
     }
 
     fun submitPhoneNumber(phoneNumber: String) = submitAuthenticationRequest(
@@ -456,6 +479,7 @@ object TelegramRepository {
 const val TELEGRAM_ADDON_ID = "telegram"
 internal const val TELEGRAM_ADDON_NAME = "Telegram"
 private const val SPLIT_SCAN_WINDOW = 20L
+private const val TELEGRAM_CONNECTION_TIMEOUT_MS = 4_000L
 
 internal fun resolveTelegramSearchTitle(searchTitle: String?, fallbackTitle: String?): String? =
     searchTitle?.trim()?.takeIf { it.isNotEmpty() }
