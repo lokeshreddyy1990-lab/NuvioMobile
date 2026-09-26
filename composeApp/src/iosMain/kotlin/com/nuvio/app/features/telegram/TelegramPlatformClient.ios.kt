@@ -75,6 +75,11 @@ internal actual object TelegramPlatformClient {
         }
     }
 
+    actual fun readFile(fileId: Int, offset: Long, length: Int): ByteArray? {
+        if (fileId <= 0 || length <= 0) return null
+        return readConcat(listOf(TelegramPlaybackPart(fileId = fileId, size = 0L)), offset, length)
+    }
+
     actual fun cacheSizeBytes(): Long = NuvioTelegramCacheSize()
 
     actual fun clearCache() = NuvioTelegramClearCache()

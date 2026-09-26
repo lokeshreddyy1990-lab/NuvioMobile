@@ -5,11 +5,48 @@ data class TelegramSplitInfo(
     val partNumber: Int,
     val isZip: Boolean,
     val displayName: String,
-)
+) {
+    /** True when the parts reassemble into a disc image rather than a ZIP archive. */
+    val isIso: Boolean get() = !isZip && hasTelegramExtension(displayName, ISO_EXTENSIONS)
+}
+
+/** Extension of [fileName] lowercased, or an empty string when it has none. */
+internal fun telegramExtension(fileName: String): String =
+    fileName.substringAfterLast('.', "").lowercase()
+
+internal fun hasTelegramExtension(fileName: String, extensions: Set<String>): Boolean =
+    telegramExtension(fileName) in extensions
+
+/** True for a disc image, whether stored whole (`.iso`) or as split volumes (`.iso.001`). */
+fun isTelegramIsoName(fileName: String): Boolean =
+    hasTelegramExtension(fileName, ISO_EXTENSIONS) || parseTelegramIsoSplit(fileName) != null
+
+/** Matches `Name.iso.001` / `Name.img.002` but not a plain `Name.iso`. */
+private fun parseTelegramIsoSplit(filename: String?): TelegramSplitInfo? {
+    val name = filename?.trim().orEmpty()
+    val match = ISO_SPLIT.matchEntire(name) ?: return null
+    val base = match.groupValues[1]
+    val ext = match.groupValues[2]
+    val part = match.groupValues[3].toIntOrNull() ?: return null
+    return TelegramSplitInfo(
+        groupKey = "${normalizeTelegramBase(base)}.${ext.lowercase()}",
+        partNumber = part,
+        isZip = false,
+        displayName = "$base.$ext",
+    )
+}
 
 private val VIDEO_EXTENSIONS = setOf("mkv", "mp4", "m4v", "avi", "mov", "webm", "ts", "m2ts", "mpg", "mpeg", "wmv", "flv")
-private val TRAILING_SPLIT = Regex("""(?i)\.(mkv|mp4|avi|ts|m4v|mov|wmv|webm|flv|m2ts|mpg|mpeg|zip)\.(\d{2,3})(?=$|\D)""")
+
+/** Disc-image extensions. An `.iso` is a filesystem in a file, not a video stream. */
+internal val ISO_EXTENSIONS = setOf("iso", "img")
+
+/** Video payload extensions that are meaningful *inside* a disc image. */
+private val DISC_STREAM_EXTENSIONS = setOf("m2ts", "mts", "vob", "mpg", "mpeg", "mkv", "mp4", "avi", "ts")
+
+private val TRAILING_SPLIT = Regex("""(?i)\.(mkv|mp4|avi|ts|m4v|mov|wmv|webm|flv|m2ts|mpg|mpeg|zip|iso|img)\.(\d{2,3})(?=$|\D)""")
 private val ZIP_SPLIT = Regex("""^(.+)\.zip\.(\d{2,3})$""", RegexOption.IGNORE_CASE)
+private val ISO_SPLIT = Regex("""^(.+)\.(iso|img)\.(\d{2,3})$""", RegexOption.IGNORE_CASE)
 private val STANDALONE_MULTIPART = Regex("""(?i)(?:part|cd|disc|disk)[s._-]*\d+(?=\.\w+$)""")
 private val SEPARATORS = Regex("""[\.\-_ ]+""")
 private val INNER_SXXEXX = Regex("""(?i)s(\d{1,3})[.x_\- ]*e(\d{1,4})""")
@@ -18,6 +55,18 @@ private val INNER_EXX = Regex("""(?i)(?:^|[^\d])e(\d{1,4})(?:[^\d]|$)""")
 fun parseTelegramSplitInfo(filename: String?): TelegramSplitInfo? {
     val name = filename?.trim().orEmpty()
     if (name.isEmpty() || STANDALONE_MULTIPART.containsMatchIn(name)) return null
+
+    ISO_SPLIT.matchEntire(name)?.let { match ->
+        val baseRaw = match.groupValues[1]
+        val ext = match.groupValues[2]
+        val part = match.groupValues[3].toIntOrNull() ?: return null
+        return TelegramSplitInfo(
+            groupKey = "${normalizeTelegramBase(baseRaw)}.${ext.lowercase()}",
+            partNumber = part,
+            isZip = false,
+            displayName = "$baseRaw.$ext",
+        )
+    }
 
     ZIP_SPLIT.matchEntire(name)?.let { match ->
         val baseRaw = match.groupValues[1]
@@ -59,8 +108,9 @@ fun parseTelegramSplitInfo(filename: String?): TelegramSplitInfo? {
 fun isTelegramStreamableName(fileName: String, mimeType: String?): Boolean {
     if (parseTelegramSplitInfo(fileName) != null) return true
     if (fileName.endsWith(".zip", ignoreCase = true)) return true
+    if (isTelegramIsoName(fileName)) return true
     if (mimeType?.startsWith("video/", ignoreCase = true) == true) return true
-    return fileName.substringAfterLast('.', "").lowercase() in VIDEO_EXTENSIONS
+    return telegramExtension(fileName) in VIDEO_EXTENSIONS
 }
 
 fun telegramSearchQueries(title: String, season: Int?, episode: Int?): List<String> {
@@ -90,12 +140,21 @@ fun telegramSearchQueries(title: String, season: Int?, episode: Int?): List<Stri
 }
 
 fun isTelegramVideoFileName(fileName: String): Boolean =
-    fileName.substringAfterLast('.', "").lowercase() in VIDEO_EXTENSIONS
+    telegramExtension(fileName) in VIDEO_EXTENSIONS
 
-fun mimeTypeForFileName(fileName: String): String = when (fileName.substringAfterLast('.', "").lowercase()) {
+/** True for a payload that can be handed to the player once a disc image is opened. */
+fun isTelegramDiscStreamFileName(fileName: String): Boolean =
+    telegramExtension(fileName) in DISC_STREAM_EXTENSIONS
+
+fun mimeTypeForFileName(fileName: String): String = when (telegramExtension(fileName)) {
     "mp4", "m4v" -> "video/mp4"
     "webm" -> "video/webm"
     "avi" -> "video/x-msvideo"
+    "m2ts" -> "video/mp2t"
+    "ts" -> "video/mp2t"
+    "vob" -> "video/mpeg"
+    "mpg", "mpeg" -> "video/mpeg"
+    "iso", "img" -> "application/x-iso9660-image"
     else -> "video/x-matroska"
 }
 

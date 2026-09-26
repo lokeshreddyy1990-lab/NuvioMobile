@@ -207,14 +207,24 @@ object TelegramRepository {
             if (!contiguousTelegramParts(parts.keys)) continue
             val ordered = parts.entries.sortedBy { it.key }.map { it.value }
             val split = parseTelegramSplitInfo(ordered.first().fileName) ?: continue
-            val stream = virtualStreamItem(
-                hits = ordered,
-                isZip = split.isZip,
-                displayName = split.displayName,
-                season = season,
-                episode = episode,
-                chatTitles = chatTitles,
-            ) ?: continue
+            val stream = if (!split.isZip && isTelegramIsoName(split.displayName)) {
+                isoStreamItem(
+                    hits = ordered,
+                    displayName = split.displayName,
+                    season = season,
+                    episode = episode,
+                    chatTitles = chatTitles,
+                )
+            } else {
+                virtualStreamItem(
+                    hits = ordered,
+                    isZip = split.isZip,
+                    displayName = split.displayName,
+                    season = season,
+                    episode = episode,
+                    chatTitles = chatTitles,
+                )
+            } ?: continue
             ordered.forEach { hit -> used += hit.chatId to hit.messageId }
             streams += stream
         }
@@ -224,6 +234,28 @@ object TelegramRepository {
             if (parseTelegramSplitInfo(hit.fileName) != null) continue
             if (!isTelegramStreamableName(hit.fileName, hit.mimeType)) continue
             if (hit.fileName.endsWith(".zip", ignoreCase = true)) continue
+            // A disc image is not a video stream: open it and surface the title inside.
+            if (isTelegramIsoName(hit.fileName)) {
+                val opened = isoStreamItem(
+                    hits = listOf(hit),
+                    displayName = hit.fileName,
+                    season = season,
+                    episode = episode,
+                    chatTitles = chatTitles,
+                )
+                if (opened != null) {
+                    streams.add(opened)
+                    continue
+                }
+                // No readable ISO9660 tree. A UDF-only disc still has a chance of playing
+                // if the engine can mount it, so surface the raw image; anything else
+                // (an audio ISO, a corrupt upload) stays hidden rather than failing on tap.
+                val isDiscImage = hasUdfAnchor(hit.fileSize) { offset, length ->
+                    TelegramPlatformClient.readFile(hit.fileId, offset, length)
+                }
+                if (isDiscImage) singleStreamItem(hit, chatTitles)?.let { streams.add(it) }
+                continue
+            }
             streams += singleStreamItem(hit, chatTitles) ?: continue
         }
         streams.distinctBy { it.url }
@@ -341,6 +373,64 @@ object TelegramRepository {
                 notWebReady = true,
                 videoSize = fileSize,
                 filename = fileName,
+            ),
+        )
+    }
+
+    /**
+     * Opens a disc image (`.iso`, `.img`, or its `.iso.001` volumes) and publishes the
+     * main title found inside it.
+     *
+     * The image is never handed to the player directly: an ISO is a filesystem, not a
+     * bitstream. The ISO9660 tree is walked for a Blu-ray `STREAM` payload or a DVD
+     * `VTS_*.VOB` and that byte range is exposed as a virtual URL, so a 40 GB image costs
+     * only the directory reads plus the title itself.
+     */
+    private fun isoStreamItem(
+        hits: List<TelegramHit>,
+        displayName: String,
+        season: Int?,
+        episode: Int?,
+        chatTitles: MutableMap<Long, String>,
+    ): StreamItem? {
+        val playbackParts = hits.map { TelegramPlaybackPart(fileId = it.fileId, size = it.fileSize) }
+        val imageSize = playbackParts.sumOf { it.size }
+        if (imageSize <= 0L) return null
+        val entry = findTelegramIsoEntry(
+            imageSize = imageSize,
+            season = season,
+            episode = episode,
+        ) { offset, length -> TelegramPlatformClient.readConcat(playbackParts, offset, length) } ?: return null
+
+        val url = TelegramPlatformClient.virtualPlaybackUrl(
+            TelegramVirtualPlaybackSpec(
+                parts = playbackParts,
+                fileName = entry.name,
+                mimeType = mimeTypeForFileName(entry.name),
+                innerOffset = entry.offset,
+                innerSize = entry.size,
+            ),
+        ) ?: return null
+
+        val chatTitle = chatTitle(hits.first().chatId, chatTitles)
+        val caption = hits.first().caption
+        val label = "$displayName ▸ ${entry.name}"
+        return StreamItem(
+            name = label,
+            title = label,
+            description = listOfNotNull(
+                chatTitle,
+                formatTelegramSize(entry.size),
+                caption?.takeIf { it.isNotBlank() },
+            ).joinToString(" • "),
+            url = url,
+            sourceName = chatTitle,
+            addonName = "Telegram",
+            addonId = TELEGRAM_ADDON_ID,
+            behaviorHints = StreamBehaviorHints(
+                notWebReady = true,
+                videoSize = entry.size,
+                filename = entry.name,
             ),
         )
     }
@@ -481,6 +571,27 @@ internal const val TELEGRAM_ADDON_NAME = "Telegram"
 private const val SPLIT_SCAN_WINDOW = 20L
 private const val TELEGRAM_CONNECTION_TIMEOUT_MS = 4_000L
 
+/**
+ * Human-readable size, used in the disc-image stream description.
+ */
+internal fun formatTelegramSize(bytes: Long): String {
+    if (bytes <= 0L) return ""
+    val units = listOf("B", "KB", "MB", "GB", "TB")
+    var value = bytes.toDouble()
+    var unit = 0
+    while (value >= 1024.0 && unit < units.lastIndex) {
+        value /= 1024.0
+        unit += 1
+    }
+    val rendered = if (value >= 100 || value == value.toLong().toDouble()) {
+        value.toLong().toString()
+    } else {
+        val rounded = (value * 10).toLong() / 10.0
+        rounded.toString()
+    }
+    return "$rendered ${units[unit]}"
+}
+
 internal fun resolveTelegramSearchTitle(searchTitle: String?, fallbackTitle: String?): String? =
     searchTitle?.trim()?.takeIf { it.isNotEmpty() }
         ?: fallbackTitle?.trim()?.takeIf { it.isNotEmpty() }
@@ -535,6 +646,8 @@ private fun JsonObject.telegramMedia(): TelegramMedia? {
         else -> mediaObject.objectValue("document")
     } ?: return null
     val fileId = fileObject.int("id").takeIf { it > 0 } ?: return null
+    // Telegram reports `expected_size` for a file that is still uploading and `size` can
+    // lag behind it; the larger value is the real total, which the disc-image probe needs.
     val fileSize = maxOf(fileObject.long("size"), fileObject.long("expected_size"))
         .takeIf { it > 0 } ?: return null
     return TelegramMedia(

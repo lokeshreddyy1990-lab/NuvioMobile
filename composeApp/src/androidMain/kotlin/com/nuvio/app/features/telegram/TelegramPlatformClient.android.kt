@@ -13,6 +13,8 @@ internal actual object TelegramPlatformClient {
 
     actual fun readConcat(parts: List<TelegramPlaybackPart>, offset: Long, length: Int): ByteArray? = null
 
+    actual fun readFile(fileId: Int, offset: Long, length: Int): ByteArray? = null
+
     actual fun cacheSizeBytes(): Long = 0L
 
     actual fun clearCache() = Unit

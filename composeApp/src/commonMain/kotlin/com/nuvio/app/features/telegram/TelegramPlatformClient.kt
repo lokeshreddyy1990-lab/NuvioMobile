@@ -13,6 +13,12 @@ internal expect object TelegramPlatformClient {
 
     fun readConcat(parts: List<TelegramPlaybackPart>, offset: Long, length: Int): ByteArray?
 
+    /**
+     * Reads a byte range from a single Telegram file without materialising the whole file.
+     * Used to probe a disc image's header before deciding whether it is playable.
+     */
+    fun readFile(fileId: Int, offset: Long, length: Int): ByteArray?
+
     fun cacheSizeBytes(): Long
 
     fun clearCache()
