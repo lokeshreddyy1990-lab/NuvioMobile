@@ -1027,7 +1027,6 @@ private fun StreamActionsSheet(
                     }
                 },
             )
-            NuvioBottomSheetDivider()
             NuvioBottomSheetActionRow(
                 icon = Icons.AutoMirrored.Rounded.OpenInNew,
                 title = stringResource(
@@ -1044,7 +1043,6 @@ private fun StreamActionsSheet(
                     }
                 },
             )
-            NuvioBottomSheetDivider()
             NuvioBottomSheetActionRow(
                 icon = Icons.Rounded.Download,
                 title = stringResource(Res.string.streams_download_file),
