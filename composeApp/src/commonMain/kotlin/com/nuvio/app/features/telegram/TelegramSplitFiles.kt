@@ -52,6 +52,20 @@ private val SEPARATORS = Regex("""[\.\-_ ]+""")
 private val INNER_SXXEXX = Regex("""(?i)s(\d{1,3})[.x_\- ]*e(\d{1,4})""")
 private val INNER_EXX = Regex("""(?i)(?:^|[^\d])e(\d{1,4})(?:[^\d]|$)""")
 
+/**
+ * Some mirror bots append the byte size to a file name, so `Name.iso` arrives as
+ * `Name.isobytes=8251899004`. That token hides the real extension and no split pattern
+ * can see through it, so it is removed before the name is parsed.
+ */
+private val TELEGRAM_SIZE_TOKEN = Regex("""(?i)(?:bytes?|size)=\d+(?=\.|$)""")
+
+/**
+ * Strips a byte-size marker from [fileName]. Only a token followed by a dot or the end of
+ * the name is removed, so a resolution-like name such as `Movie.Size=720p.mkv` survives.
+ */
+fun stripTelegramSizeToken(fileName: String): String =
+    TELEGRAM_SIZE_TOKEN.replace(fileName, "").ifBlank { fileName }
+
 fun parseTelegramSplitInfo(filename: String?): TelegramSplitInfo? {
     val name = filename?.trim().orEmpty()
     if (name.isEmpty() || STANDALONE_MULTIPART.containsMatchIn(name)) return null
@@ -176,6 +190,27 @@ fun selectTelegramZipEntry(
     if (videos.isEmpty()) return null
     if (episode == null) return videos.singleOrNull()
     return videos.firstOrNull { telegramInnerMatchesEpisode(it.name, season, episode) }
+}
+
+/**
+ * Selects a disc image stored inside a ZIP archive.
+ *
+ * A `Name.iso.zip.001` upload holds an image rather than a video entry, so the caller must
+ * open the image and expose the title inside it instead of handing the archive to the
+ * player. Returns `null` when the archive holds no stored image.
+ */
+fun selectTelegramZipImageEntry(
+    entries: List<TelegramZipEntry>,
+    season: Int?,
+    episode: Int?,
+): TelegramZipEntry? {
+    val images = entries.filter { it.method == ZIP_STORED && it.size > 0 && isTelegramIsoName(it.name) }
+    if (images.isEmpty()) return null
+    if (episode != null) {
+        val wanted = images.filter { telegramInnerMatchesEpisode(it.name, season, episode) }
+        if (wanted.isNotEmpty()) return wanted.maxBy { it.size }
+    }
+    return images.maxBy { it.size }
 }
 
 fun contiguousTelegramParts(parts: Collection<Int>): Boolean {

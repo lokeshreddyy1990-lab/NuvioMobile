@@ -268,9 +268,12 @@ object TelegramRepository {
         val content = message.objectValue("content") ?: return null
         val media = content.telegramMedia() ?: return null
         val caption = content.objectValue("caption")?.string("text")
-        val fileName = media.fileName.takeUnless { it.startsWith("Telegram video ") }
+        val rawFileName = media.fileName.takeUnless { it.startsWith("Telegram video ") }
             ?: caption?.takeIf { it.isNotBlank() }
             ?: media.fileName
+        // Mirror bots append the byte size, which would otherwise hide `.iso` from every
+        // split pattern and drop the upload before it can be grouped.
+        val fileName = stripTelegramSizeToken(rawFileName)
         if (!isTelegramStreamableName(fileName, media.mimeType)) return null
         return TelegramHit(
             chatId = chatId,
@@ -337,7 +340,21 @@ object TelegramRepository {
             val entries = parseTelegramZipEntries(zipSize) { offset, length ->
                 TelegramPlatformClient.readConcat(playbackParts, offset, length)
             }
-            val entry = selectTelegramZipEntry(entries, season, episode) ?: return null
+            val entry = selectTelegramZipEntry(entries, season, episode)
+            if (entry == null) {
+                // The archive stores a disc image, not a video. Open the image and publish
+                // the title inside it; the archive bytes are never handed to the player.
+                val image = selectTelegramZipImageEntry(entries, season, episode) ?: return null
+                return zipIsoStreamItem(
+                    playbackParts = playbackParts,
+                    entry = image,
+                    displayName = displayName,
+                    season = season,
+                    episode = episode,
+                    hits = hits,
+                    chatTitles = chatTitles,
+                )
+            }
             fileName = entry.name
             fileSize = entry.size
             mimeType = mimeTypeForFileName(entry.name)
@@ -431,6 +448,57 @@ object TelegramRepository {
                 notWebReady = true,
                 videoSize = entry.size,
                 filename = entry.name,
+            ),
+        )
+    }
+
+    /**
+     * Publishes the main title inside a disc image that itself lives inside a ZIP archive
+     * (`Name.iso.zip.001`). The archive bytes are never handed to the player: [entry]'s
+     * range is walked as an image and only the payload it holds becomes the stream URL.
+     */
+    private fun zipIsoStreamItem(
+        playbackParts: List<TelegramPlaybackPart>,
+        entry: TelegramZipEntry,
+        displayName: String,
+        season: Int?,
+        episode: Int?,
+        hits: List<TelegramHit>,
+        chatTitles: MutableMap<Long, String>,
+    ): StreamItem? {
+        val inner = findTelegramIsoEntry(entry.size, season, episode) { offset, length ->
+            TelegramPlatformClient.readConcat(playbackParts, entry.dataOffset + offset, length)
+        } ?: return null
+
+        val url = TelegramPlatformClient.virtualPlaybackUrl(
+            TelegramVirtualPlaybackSpec(
+                parts = playbackParts,
+                fileName = inner.name,
+                mimeType = mimeTypeForFileName(inner.name),
+                innerOffset = entry.dataOffset + inner.offset,
+                innerSize = inner.size,
+            ),
+        ) ?: return null
+
+        val chatTitle = chatTitle(hits.first().chatId, chatTitles)
+        val caption = hits.first().caption
+        val label = "$displayName ▸ ${inner.name}"
+        return StreamItem(
+            name = label,
+            title = label,
+            description = listOfNotNull(
+                chatTitle,
+                formatTelegramSize(inner.size),
+                caption?.takeIf { it.isNotBlank() },
+            ).joinToString(" • "),
+            url = url,
+            sourceName = chatTitle,
+            addonName = TELEGRAM_ADDON_NAME,
+            addonId = TELEGRAM_ADDON_ID,
+            behaviorHints = StreamBehaviorHints(
+                notWebReady = true,
+                videoSize = inner.size,
+                filename = inner.name,
             ),
         )
     }

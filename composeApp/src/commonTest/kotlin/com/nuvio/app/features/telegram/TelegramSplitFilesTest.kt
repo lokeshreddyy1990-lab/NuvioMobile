@@ -187,6 +187,93 @@ class TelegramSplitFilesTest {
         )
         assertNull(findTelegramIsoEntry(0L) { _, _ -> null })
     }
+
+    @Test
+    fun mirrorBotSizeTokenDoesNotHideTheExtension() {
+        // `Name.isobytes=8251899004.001` must still read as an `Name.iso.001` volume.
+        val stripped = stripTelegramSizeToken("YUvaraju.2000.TELUGU.DVD9.SJ.isobytes=8251899004.001")
+        assertEquals("YUvaraju.2000.TELUGU.DVD9.SJ.iso.001", stripped)
+        val info = parseTelegramSplitInfo(stripped)
+        assertNotNull(info)
+        assertTrue(info.isIso)
+        assertEquals(1, info.partNumber)
+        assertEquals("YUvaraju.2000.TELUGU.DVD9.SJ.iso", info.displayName)
+        assertTrue(isTelegramStreamableName(stripTelegramSizeToken("Chandramukhi.isobytes=7582464000.002"), null))
+        // A resolution-like token must not be mistaken for a size marker.
+        assertEquals("Movie.Size=720p.mkv", stripTelegramSizeToken("Movie.Size=720p.mkv"))
+    }
+
+    @Test
+    fun storedDiscImageInsideAZipIsOpenedRatherThanPlayed() {
+        // A `.iso.zip.001` upload holds an image, so the archive is opened as a disc and the
+        // payload inside the image becomes the stream.
+        val payload = ByteArray(1_024) { 0x5a }
+        val iso = isoImage(listOf("STREAM/00001.m2ts" to payload))
+        val zip = storedZip(listOf("AVAKAIBIRYANI.2008.iso" to iso))
+        val entries = parseTelegramZipEntries(zip)
+        assertNull(selectTelegramZipEntry(entries, null, null))
+        val image = selectTelegramZipImageEntry(entries, null, null)
+        assertNotNull(image)
+        assertEquals("AVAKAIBIRYANI.2008.iso", image.name)
+
+        val inner = findTelegramIsoEntry(image.size) { offset, length ->
+            val start = (image.dataOffset + offset).toInt().coerceIn(0, zip.size)
+            zip.copyOfRange(start, minOf(start + length, zip.size))
+        }
+        assertNotNull(inner)
+        assertEquals("00001.m2ts", inner.name)
+        assertEquals(payload.size.toLong(), inner.size)
+        assertTrue(
+            zip.copyOfRange(
+                (image.dataOffset + inner.offset).toInt(),
+                (image.dataOffset + inner.offset + inner.size).toInt(),
+            ).all { it == 0x5a.toByte() },
+        )
+    }
+
+    @Test
+    fun dvdTitlePartsAreJoinedIntoASingleRange() {
+        // A DVD feature is cut into 1 GB `VTS_<tt>_<n>.VOB` parts, so the whole title has to be
+        // surfaced rather than the largest single part.
+        val joined = joinDvdTitleParts(
+            listOf(
+                TelegramIsoEntry("VTS_01_0.VOB", 500L, 100_000_000L),
+                TelegramIsoEntry("VTS_01_2.VOB", 2_000_000_000L, 1_000_000_000L),
+                TelegramIsoEntry("VTS_01_1.VOB", 1_000_000_000L, 1_000_000_000L),
+                // One sector of padding after part 2 is normal for a disc image.
+                TelegramIsoEntry("VTS_01_3.VOB", 3_000_000_512L, 400_000_000L),
+                TelegramIsoEntry("VTS_02_1.VOB", 9_000_000_000L, 200_000_000L),
+            ),
+        )
+        assertNotNull(joined)
+        assertEquals("VTS_01_1-3.VOB", joined.name)
+        assertEquals(1_000_000_000L, joined.offset)
+        assertEquals(2_400_000_512L, joined.size)
+    }
+
+    @Test
+    fun dvdTitleJoinIsRefusedWhenPartsAreNotStoredInOrder() {
+        // A gap larger than a sector means the parts are not one sequential title.
+        assertNull(
+            joinDvdTitleParts(
+                listOf(
+                    TelegramIsoEntry("VTS_01_1.VOB", 1_000L, 1_000L),
+                    TelegramIsoEntry("VTS_01_2.VOB", 500_000L, 1_000L),
+                ),
+            ),
+        )
+        // Playback must start at part 1; a set missing it is not a title.
+        assertNull(
+            joinDvdTitleParts(
+                listOf(
+                    TelegramIsoEntry("VTS_01_2.VOB", 2_000L, 1_000L),
+                    TelegramIsoEntry("VTS_01_3.VOB", 3_000L, 1_000L),
+                ),
+            ),
+        )
+        // Blu-ray payloads carry no title-set numbering and are never joined.
+        assertNull(joinDvdTitleParts(listOf(TelegramIsoEntry("00001.m2ts", 0L, 1_000L))))
+    }
 }
 
 private fun storedZip(files: List<Pair<String, ByteArray>>): ByteArray {
@@ -286,10 +373,11 @@ internal fun isoImage(files: List<Pair<String, ByteArray>>): ByteArray {
     val totalBytes = ISO_TEST_SYSTEM_AREA + dataSectors * ISO_TEST_SECTOR
     val image = ByteArray(totalBytes)
 
-    // Extents are addressed by logical block address, but stored after the 16-sector system
-    // area, so every write must use `lba * SECTOR + SYSTEM_AREA` — the same arithmetic the
-    // reader uses. Getting this wrong silently shifts every payload.
-    fun extentOffset(lba: Int): Int = lba * ISO_TEST_SECTOR + ISO_TEST_SYSTEM_AREA
+    // Extents are logical block addresses counted from the start of the volume — the same
+    // space the volume descriptors live in, sector 16 — so `lba * SECTOR` is already
+    // absolute. Adding the system area (as the descriptor read correctly does) would put
+    // every payload 16 sectors past the record that points at it.
+    fun extentOffset(lba: Int): Int = lba * ISO_TEST_SECTOR
 
     // Primary Volume Descriptor. The Root Directory Record is embedded at offset 156 and
     // keeps its own field layout: 156 = record length, 158 = extent LBA, 166 = data length.
