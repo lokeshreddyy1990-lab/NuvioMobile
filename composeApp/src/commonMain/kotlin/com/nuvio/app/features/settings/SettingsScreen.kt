@@ -138,7 +138,6 @@ fun SettingsScreen(
     onContinueWatchingClick: () -> Unit = {},
     onAddonsClick: () -> Unit = {},
     onPluginsClick: () -> Unit = {},
-    onDownloadsClick: () -> Unit = {},
     onAccountClick: () -> Unit = {},
     onSupportersContributorsClick: () -> Unit = {},
     onLicensesAttributionsClick: () -> Unit = {},
@@ -440,7 +439,6 @@ fun SettingsScreen(
                         continueWatchingPreferencesUiState = continueWatchingPreferencesUiState,
                         posterCardStyleUiState = posterCardStyleUiState,
                         onSwitchProfile = onSwitchProfile,
-                        onDownloadsClick = onDownloadsClick,
                         onSupportersContributorsClick = openSupportersContributors,
                         onLicensesAttributionsClick = openLicensesAttributions,
                         onCheckForUpdatesClick = onCheckForUpdatesClick,
@@ -512,7 +510,6 @@ fun SettingsScreen(
                         onContinueWatchingClick = openContinueWatching,
                         onAddonsClick = openAddons,
                         onPluginsClick = openPlugins,
-                        onDownloadsClick = onDownloadsClick,
                         onAccountClick = openAccount,
                         onSupportersContributorsClick = openSupportersContributors,
                         onLicensesAttributionsClick = openLicensesAttributions,
@@ -591,7 +588,6 @@ private fun MobileSettingsScreen(
     onContinueWatchingClick: () -> Unit = {},
     onAddonsClick: () -> Unit = {},
     onPluginsClick: () -> Unit = {},
-    onDownloadsClick: () -> Unit = {},
     onAccountClick: () -> Unit = {},
     onSupportersContributorsClick: () -> Unit = {},
     onLicensesAttributionsClick: () -> Unit = {},
@@ -644,7 +640,6 @@ private fun MobileSettingsScreen(
                     SettingsPage.MetaScreen -> onMetaScreenClick()
                     else -> onPageChange(target.page)
                 }
-                SettingsSearchTarget.Downloads -> onDownloadsClick()
                 SettingsSearchTarget.Collections -> onCollectionsClick()
                 SettingsSearchTarget.SwitchProfile -> onSwitchProfile?.invoke()
                 SettingsSearchTarget.CheckForUpdates -> onCheckForUpdatesClick?.invoke()
@@ -716,7 +711,6 @@ private fun MobileSettingsScreen(
                             onLicensesAttributionsClick = onLicensesAttributionsClick,
                             onCheckForUpdatesClick = onCheckForUpdatesClick,
                             onTestUpdateBannerClick = onTestUpdateBannerClick,
-                            onDownloadsClick = onDownloadsClick,
                             onAccountClick = onAccountClick,
                             onSwitchProfileClick = onSwitchProfile,
                             showSupportersContributorsPage = AppFeaturePolicy.supportersContributorsPageEnabled,
@@ -964,7 +958,6 @@ private fun TabletSettingsScreen(
     continueWatchingPreferencesUiState: ContinueWatchingPreferencesUiState,
     posterCardStyleUiState: PosterCardStyleUiState,
     onSwitchProfile: (() -> Unit)? = null,
-    onDownloadsClick: () -> Unit = {},
     onSupportersContributorsClick: () -> Unit = {},
     onLicensesAttributionsClick: () -> Unit = {},
     onCheckForUpdatesClick: (() -> Unit)? = null,
@@ -1043,7 +1036,6 @@ private fun TabletSettingsScreen(
                             openInlinePage(target.page)
                         }
                     }
-                    SettingsSearchTarget.Downloads -> onDownloadsClick()
                     SettingsSearchTarget.Collections -> onCollectionsClick()
                     SettingsSearchTarget.SwitchProfile -> onSwitchProfile?.invoke()
                     SettingsSearchTarget.CheckForUpdates -> onCheckForUpdatesClick?.invoke()
@@ -1146,7 +1138,6 @@ private fun TabletSettingsScreen(
                                 onLicensesAttributionsClick = { openInlinePage(SettingsPage.LicensesAttributions) },
                                 onCheckForUpdatesClick = onCheckForUpdatesClick,
                                 onTestUpdateBannerClick = onTestUpdateBannerClick,
-                                onDownloadsClick = onDownloadsClick,
                                 onAccountClick = { openInlinePage(SettingsPage.Account) },
                                 onSwitchProfileClick = onSwitchProfile,
                                 showAccountSection = activeCategory == SettingsCategory.Account,
