@@ -59,10 +59,8 @@ internal fun PlayerGestureOverlay(
     horizontalSafePadding: Dp,
     horizontalPadding: Dp,
 ) {
-    val isSeek = currentFeedback?.icon == GestureFeedbackIcon.SeekForward ||
-        currentFeedback?.icon == GestureFeedbackIcon.SeekBackward
     AnimatedVisibility(
-        visible = currentFeedback != null && (useLegacyLayout || !isSeek),
+        visible = currentFeedback != null,
         enter = fadeIn(),
         exit = fadeOut(),
     ) {
@@ -80,11 +78,25 @@ internal fun PlayerGestureOverlay(
                 }
             } else {
                 (currentFeedback ?: renderedFeedback)?.let { feedback ->
-                    PlayerGestureFeedback(
-                        feedback = feedback,
-                        horizontalSafePadding = horizontalSafePadding,
-                        horizontalPadding = horizontalPadding,
-                    )
+                    val feedbackIsSeek = feedback.icon == GestureFeedbackIcon.SeekForward ||
+                        feedback.icon == GestureFeedbackIcon.SeekBackward
+                    if (feedbackIsSeek) {
+                        // Seek HUD pill (target time + delta) — new layout.
+                        GestureFeedbackPill(
+                            feedback = feedback,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
+                                .padding(horizontal = horizontalSafePadding)
+                                .padding(top = 40.dp),
+                        )
+                    } else {
+                        PlayerGestureFeedback(
+                            feedback = feedback,
+                            horizontalSafePadding = horizontalSafePadding,
+                            horizontalPadding = horizontalPadding,
+                        )
+                    }
                 }
             }
         }
