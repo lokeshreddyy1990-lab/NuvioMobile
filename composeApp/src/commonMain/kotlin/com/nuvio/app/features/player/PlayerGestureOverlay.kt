@@ -6,9 +6,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -19,11 +22,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContent
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.rounded.FastRewind
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -81,8 +90,8 @@ internal fun PlayerGestureOverlay(
                     val feedbackIsSeek = feedback.icon == GestureFeedbackIcon.SeekForward ||
                         feedback.icon == GestureFeedbackIcon.SeekBackward
                     if (feedbackIsSeek) {
-                        // Seek HUD pill (target time + delta) — new layout.
-                        GestureFeedbackPill(
+                        // Modern seek HUD — matches the new player layout chrome.
+                        PlayerSeekHud(
                             feedback = feedback,
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
@@ -98,6 +107,56 @@ internal fun PlayerGestureOverlay(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Modern seek indicator used by the new player layout. Mirrors the chrome of the new
+ * bottom action bar: black @ 50% with a 1dp white @ 20% border and a 24dp corner radius.
+ */
+@Composable
+private fun PlayerSeekHud(
+    feedback: GestureFeedbackState,
+    modifier: Modifier = Modifier,
+) {
+    val isForward = feedback.icon != GestureFeedbackIcon.SeekBackward
+    val messageText = feedback.messageRes?.let { stringResource(it, *feedback.messageArgs.toTypedArray()) }
+        ?: feedback.message.orEmpty()
+    val deltaText = feedback.secondaryMessageRes?.let {
+        stringResource(it, *feedback.secondaryMessageArgs.toTypedArray())
+    } ?: feedback.secondaryMessage
+    val shape = RoundedCornerShape(24.dp)
+    Surface(
+        color = Color.Black.copy(alpha = 0.5f),
+        shape = shape,
+        modifier = modifier.border(1.dp, Color.White.copy(alpha = 0.2f), shape),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = if (isForward) Icons.Rounded.FastForward else Icons.Rounded.FastRewind,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = messageText,
+                style = MaterialTheme.nuvioTypeScale.bodyLg.copy(fontWeight = FontWeight.SemiBold),
+                color = Color.White,
+                maxLines = 1,
+            )
+            deltaText?.let { delta ->
+                Text(
+                    text = delta,
+                    style = MaterialTheme.nuvioTypeScale.bodyMd.copy(fontWeight = FontWeight.SemiBold),
+                    color = feedback.secondaryMessageColor ?: Color.White.copy(alpha = 0.9f),
+                    maxLines = 1,
+                )
             }
         }
     }
