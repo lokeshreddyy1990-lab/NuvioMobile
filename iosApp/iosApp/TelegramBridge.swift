@@ -37,6 +37,11 @@ private final class TelegramBridgeManager {
     private var listenerPort: UInt16?
     private var registeredFiles: [Int32: RegisteredTelegramFile] = [:]
     private var virtualAssets: [Int32: VirtualAsset] = [:]
+    // A virtual asset is described entirely by its parts and byte range, so the same
+    // archive always hashes to the same id. Without this, every Telegram search minted
+    // a fresh id for the identical file, and the currently playing stream could never
+    // be recognised by URL again.
+    private var virtualIdsBySignature: [String: Int32] = [:]
     private var nextVirtualId: Int32 = 1
     private var apiId: Int32 = 0
     private var apiHash = ""
@@ -102,9 +107,16 @@ private final class TelegramBridgeManager {
 
     func virtualPlaybackURL(specJSON: String) -> String? {
         guard let spec = parseVirtualSpec(specJSON), let port = ensureServer() else { return nil }
+        let signature = virtualSignature(spec)
         lock.lock()
-        let virtualId = nextVirtualId
-        nextVirtualId += 1
+        let virtualId: Int32
+        if let existing = virtualIdsBySignature[signature] {
+            virtualId = existing
+        } else {
+            virtualId = nextVirtualId
+            nextVirtualId += 1
+            virtualIdsBySignature[signature] = virtualId
+        }
         virtualAssets[virtualId] = spec
         lock.unlock()
         let encodedName = encodedHeaderValue(spec.fileName)
@@ -495,6 +507,16 @@ private final class TelegramBridgeManager {
         } catch {
             return nil
         }
+    }
+
+    /// Stable identity of a virtual asset: the ordered part list plus the exposed byte
+    /// range and name. Part order matters because the parts are concatenated as given.
+    private func virtualSignature(_ asset: VirtualAsset) -> String {
+        var tokens = asset.parts.map { "\($0.fileId):\($0.size)" }
+        tokens.append("offset=\(asset.innerOffset)")
+        tokens.append("size=\(asset.innerSize)")
+        tokens.append("name=\(asset.fileName)")
+        return tokens.joined(separator: "|")
     }
 
     private func parseVirtualSpec(_ json: String) -> VirtualAsset? {

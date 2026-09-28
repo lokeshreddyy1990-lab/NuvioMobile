@@ -32,6 +32,7 @@ fun PlayerSourcesPanel(
     currentEpisodeTitle: String?,
     currentStreamUrl: String?,
     currentStreamName: String?,
+    currentStreamAddonId: String?,
     onFilterSelected: (String?) -> Unit,
     onStreamSelected: (StreamItem) -> Unit,
     onReload: () -> Unit,
@@ -99,6 +100,7 @@ fun PlayerSourcesPanel(
                 modifier = Modifier.weight(1f),
                 currentStreamUrl = currentStreamUrl,
                 currentStreamName = currentStreamName,
+                currentStreamAddonId = currentStreamAddonId,
                 currentLabel = stringResource(Res.string.compose_player_playing),
             )
         }
@@ -122,8 +124,14 @@ internal fun List<StreamItem>.stablePlayerKeys(): List<String> {
 internal fun StreamItem.isCurrentPlayerStream(
     currentUrl: String?,
     currentName: String?,
+    currentAddonId: String? = null,
 ): Boolean {
-    if (!currentUrl.isNullOrBlank() && playableDirectUrl == currentUrl) return true
-    return !currentName.isNullOrBlank() && streamLabel.equals(currentName, ignoreCase = true) &&
-        playableDirectUrl == currentUrl
+    val url = playableDirectUrl
+    if (!currentUrl.isNullOrBlank() && url == currentUrl) return true
+
+    // Some providers mint a new playback URL for the same file on every search (Telegram
+    // archive and disc-image streams expose a local virtual URL), so fall back to the
+    // provider plus the visible stream name when the URLs cannot line up.
+    if (currentAddonId.isNullOrBlank() || addonId != currentAddonId) return false
+    return !currentName.isNullOrBlank() && streamLabel.equals(currentName, ignoreCase = true)
 }
