@@ -6,7 +6,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -222,24 +221,42 @@ private fun PlayerGestureFeedback(
                         }
                     }
                 }
-                GestureFeedbackIcon.Speed -> {
+                GestureFeedbackIcon.Speed, GestureFeedbackIcon.SeekForward, GestureFeedbackIcon.SeekBackward -> {
                     val message = feedback.messageRes?.let { stringResource(it, *feedback.messageArgs.toTypedArray()) }
                         ?: feedback.message.orEmpty()
-                    Text(
-                        text = message,
-                        color = Color.White,
-                        style = MaterialTheme.nuvioTypeScale.bodyLg.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            shadow = Shadow(Color.Black.copy(alpha = 0.8f), blurRadius = 8f),
-                        ),
+                    val secondaryMessage = feedback.secondaryMessageRes?.let {
+                        stringResource(it, *feedback.secondaryMessageArgs.toTypedArray())
+                    } ?: feedback.secondaryMessage
+                    val shadow = Shadow(Color.Black.copy(alpha = 0.8f), blurRadius = 8f)
+                    Row(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
                             .padding(horizontal = horizontalSafePadding + horizontalPadding)
                             .padding(top = 40.dp),
-                    )
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = message,
+                            color = Color.White,
+                            style = MaterialTheme.nuvioTypeScale.bodyLg.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                shadow = shadow,
+                            ),
+                        )
+                        secondaryMessage?.let {
+                            Text(
+                                text = it,
+                                color = feedback.secondaryMessageColor ?: Color.White,
+                                style = MaterialTheme.nuvioTypeScale.bodyMd.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    shadow = shadow,
+                                ),
+                            )
+                        }
+                    }
                 }
-                GestureFeedbackIcon.SeekForward, GestureFeedbackIcon.SeekBackward -> Unit
             }
         }
     }
