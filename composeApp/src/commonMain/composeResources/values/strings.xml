@@ -418,6 +418,11 @@
     <string name="compose_nav_library">Library</string>
     <string name="compose_nav_profile">Profile</string>
     <string name="compose_nav_search">Search</string>
+    <string name="compose_player_ass_override">ASS Override Mode</string>
+    <string name="compose_player_ass_override_preserve">Preserve</string>
+    <string name="compose_player_ass_override_scale">Scale</string>
+    <string name="compose_player_ass_override_colors">Colours</string>
+    <string name="compose_player_ass_override_force">Force</string>
     <string name="compose_player_audio_tracks">Audio Tracks</string>
     <string name="compose_player_audio">Audio</string>
     <string name="compose_player_auto_sync">Auto Sync</string>
@@ -1146,6 +1151,12 @@
     <string name="settings_playback_render_type_effects_opengl">Effects OpenGL</string>
     <string name="settings_playback_render_type_overlay_canvas">Overlay Canvas</string>
     <string name="settings_playback_render_type_overlay_opengl">Overlay OpenGL (Recommended)</string>
+    <string name="settings_playback_ass_override_mode">ASS/SSA Script Override</string>
+    <string name="settings_playback_ass_override_mode_description">How much your subtitle style overrides embedded ASS/SSA scripts (karaoke, typesetting). Applies to libmpv/MPVKit playback.</string>
+    <string name="settings_playback_ass_override_preserve">Preserve Anime &amp; SSA/ASS Styling (Recommended)</string>
+    <string name="settings_playback_ass_override_scale">Scale Only</string>
+    <string name="settings_playback_ass_override_colors">Override Colours &amp; Outlines</string>
+    <string name="settings_playback_ass_override_force">Force Full Override (Aggressive)</string>
     <string name="settings_playback_reuse_last_link">Reuse Last Link</string>
     <string name="settings_playback_reuse_last_link_description">Auto-play your last working stream for this same movie/episode when cache is still valid</string>
     <string name="settings_playback_secondary_audio_language">Secondary Audio Language</string>

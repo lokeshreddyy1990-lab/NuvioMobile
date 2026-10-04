@@ -171,7 +171,9 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
         bold: Bool,
         fontSize: Float,
         subPos: Int32,
-        stripSdh: Bool
+        stripSdh: Bool,
+        assOverride: String,
+        forceStyle: String
     ) {
         playerVC?.applySubtitleStyle(
             textColor: textColor,
@@ -181,7 +183,9 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
             bold: bold,
             fontSize: fontSize,
             subPos: Int(subPos),
-            stripSdh: stripSdh
+            stripSdh: stripSdh,
+            assOverride: assOverride,
+            forceStyle: forceStyle
         )
     }
 
@@ -855,11 +859,20 @@ final class MPVPlayerViewController: UIViewController {
         bold: Bool,
         fontSize: Float,
         subPos: Int,
-        stripSdh: Bool
+        stripSdh: Bool,
+        assOverride: String,
+        forceStyle: String
     ) {
         guard mpv != nil else { return }
 
-        checkError(mpv_set_property_string(mpv, "sub-ass-override", "no"))
+        // Full mpv parity with the Android libmpv engine / PlayTorrioV3: honour the
+        // user's ASS/SSA script override mode and, when overriding, inject the forced
+        // style payload. An empty forceStyle (Preserve) clears any previous value.
+        checkError(mpv_set_property_string(mpv, "sub-ass-override", assOverride))
+        setStringProperty("sub-ass-force-margins", "yes")
+        setStringProperty("sub-use-margins", "yes")
+        setStringProperty("sub-ass-force-style", forceStyle)
+
         checkError(mpv_set_property_string(mpv, "sub-color", textColor))
         checkError(mpv_set_property_string(mpv, "sub-back-color", backgroundColor))
         checkError(mpv_set_property_string(mpv, "sub-outline-color", outlineColor))
