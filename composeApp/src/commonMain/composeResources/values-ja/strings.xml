@@ -435,6 +435,7 @@
     <string name="compose_settings_page_streams">ストリーム</string>
     <string name="settings_appearance_section_streams">ストリーム</string>
     <string name="compose_settings_page_supporters_contributors">サポーターとコントリビューター</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">TMDB補完</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_root_about_section">アプリについて</string>
@@ -651,6 +652,7 @@
     <string name="settings_integrations_tmdb_description">メタデータ補完の設定</string>
     <string name="settings_integrations_mdblist_description">外部評価プロバイダー</string>
     <string name="settings_integrations_debrid_description">リンクとライブラリアクセス用のアカウントを連携</string>
+    <string name="settings_integrations_telegram_description">Telegram アカウントを連携してメディアを再生</string>
     <string name="settings_debrid_section_title">連携サービス</string>
     <string name="settings_debrid_experimental_notice">これらの連携は試験的なものであり、今後維持・変更・削除される可能性があります。</string>
     <string name="settings_debrid_cloud_library">クラウドライブラリ</string>

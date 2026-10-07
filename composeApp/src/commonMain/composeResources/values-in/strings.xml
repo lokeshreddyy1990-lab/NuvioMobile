@@ -411,6 +411,7 @@
     <string name="compose_settings_page_poster_customization">Gaya Kartu Poster</string>
     <string name="compose_settings_page_root">Pengaturan</string>
     <string name="compose_settings_page_supporters_contributors">Kontributor &amp; Donatur</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">Pengayaan TMDB</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_root_about_section">TENTANG</string>
@@ -614,6 +615,7 @@
     <string name="settings_integrations_tmdb_description">Kontrol pengayaan metadata</string>
     <string name="settings_integrations_mdblist_description">Penyedia rating eksternal</string>
     <string name="settings_integrations_debrid_description">Hubungkan akun untuk akses link dan pustaka cloud</string>
+    <string name="settings_integrations_telegram_description">Hubungkan akun Telegram Anda untuk streaming media</string>
     <string name="settings_debrid_section_title">LAYANAN DEBRID</string>
     <string name="settings_debrid_experimental_notice">Integrasi ini masih bersifat eksperimental dan dapat dipertahankan, diubah, atau dihapus sewaktu-waktu.</string>
     <string name="settings_debrid_cloud_library">Pustaka Cloud</string>

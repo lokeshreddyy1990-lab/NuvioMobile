@@ -45,6 +45,7 @@ internal fun PlayerStreamList(
     ),
     currentStreamUrl: String? = null,
     currentStreamName: String? = null,
+    currentStreamAddonId: String? = null,
     currentLabel: String? = null,
 ) {
     val debridSettings by remember {
@@ -88,6 +89,17 @@ internal fun PlayerStreamList(
 
         else -> {
             val streamKeys = remember(streams) { streams.stablePlayerKeys() }
+            // Resolve the playing row once instead of per item: a title that exists in two
+            // chats produces two same-named rows, and a per-item check would badge both.
+            val currentIndex = remember(streams, currentStreamUrl, currentStreamName, currentStreamAddonId) {
+                streams.indexOfFirst { stream ->
+                    stream.isCurrentPlayerStream(
+                        currentUrl = currentStreamUrl,
+                        currentName = currentStreamName,
+                        currentAddonId = currentStreamAddonId,
+                    )
+                }
+            }
             val formatStreamSize = rememberStreamSizeLabelFormat()
             CompositionLocalProvider(LocalStreamSizeLabelFormat provides formatStreamSize) {
             LazyColumn(
@@ -98,7 +110,7 @@ internal fun PlayerStreamList(
                 itemsIndexed(
                     items = streams,
                     key = { index, _ -> streamKeys[index] },
-                ) { _, stream ->
+                ) { index, stream ->
                     StreamCard(
                         stream = stream,
                         enabled = stream.isSelectableForPlayback(debridSettings.canResolvePlayableLinks),
@@ -107,7 +119,7 @@ internal fun PlayerStreamList(
                         showFileSizeBadges = streamBadgeSettings.showFileSizeBadges,
                         showAddonLogo = streamBadgeSettings.showAddonLogo,
                         badgePlacement = streamBadgeSettings.badgePlacement,
-                        isCurrent = stream.isCurrentPlayerStream(currentStreamUrl, currentStreamName),
+                        isCurrent = index == currentIndex,
                         currentLabel = currentLabel,
                         onClick = { onStreamSelected(stream) },
                     )

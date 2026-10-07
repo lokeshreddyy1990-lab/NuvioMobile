@@ -435,6 +435,7 @@
     <string name="compose_settings_page_streams">Fluxuri</string>
     <string name="settings_appearance_section_streams">FLUXURI</string>
     <string name="compose_settings_page_supporters_contributors">Susținători și colaboratori</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">Îmbunătățire TMDB</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_root_about_section">DESPRE</string>
@@ -669,6 +670,7 @@
     <string name="settings_integrations_tmdb_description">Comenzi pentru îmbunătățirea metadatelor</string>
     <string name="settings_integrations_mdblist_description">Furnizori externi de evaluări</string>
     <string name="settings_integrations_debrid_description">Conectează conturi pentru linkuri și acces la bibliotecă</string>
+    <string name="settings_integrations_telegram_description">Conectează contul tău Telegram pentru streaming media</string>
     <string name="settings_debrid_section_title">SERVICII CONECTATE</string>
     <string name="settings_debrid_experimental_notice">Aceste integrări sunt experimentale și pot fi păstrate, modificate sau eliminate ulterior.</string>
     <string name="settings_debrid_cloud_library">Bibliotecă în cloud</string>

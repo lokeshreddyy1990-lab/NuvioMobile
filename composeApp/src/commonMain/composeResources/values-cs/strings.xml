@@ -435,6 +435,7 @@
     <string name="compose_settings_page_streams">Streamy</string>
     <string name="settings_appearance_section_streams">STREAMY</string>
     <string name="compose_settings_page_supporters_contributors">Podporovatelé a přispěvatelé</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">Obohacení TMDB</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_root_about_section">O APLIKACI</string>
@@ -651,6 +652,7 @@
     <string name="settings_integrations_tmdb_description">Ovládání pro obohacování metadat</string>
     <string name="settings_integrations_mdblist_description">Externí poskytovatelé hodnocení</string>
     <string name="settings_integrations_debrid_description">Připojit účty pro odkazy a přístup ke knihovně</string>
+    <string name="settings_integrations_telegram_description">Připojte účet Telegram pro streamování médií</string>
     <string name="settings_debrid_section_title">PŘIPOJENÉ SLUŽBY</string>
     <string name="settings_debrid_experimental_notice">Tyto integrace jsou experimentální a mohou být zachovány, změněny nebo později odstraněny.</string>
     <string name="settings_debrid_cloud_library">Cloudová knihovna</string>

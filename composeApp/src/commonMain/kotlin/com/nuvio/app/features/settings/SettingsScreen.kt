@@ -81,6 +81,8 @@ import com.nuvio.app.features.player.AndroidPlaybackEngine
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.simkl.SimklAuthRepository
 import com.nuvio.app.features.simkl.SimklAuthUiState
+import com.nuvio.app.features.telegram.TelegramRepository
+import com.nuvio.app.features.telegram.TelegramUiState
 import com.nuvio.app.features.trakt.TraktAuthUiState
 import com.nuvio.app.features.trakt.TraktAuthRepository
 import com.nuvio.app.features.trakt.TraktCommentsSettings
@@ -187,6 +189,10 @@ fun SettingsScreen(
         val debridSettings by remember {
             DebridSettingsRepository.ensureLoaded()
             DebridSettingsRepository.uiState
+        }.collectAsStateWithLifecycle()
+        val telegramUiState by remember {
+            TelegramRepository.ensureLoaded()
+            TelegramRepository.uiState
         }.collectAsStateWithLifecycle()
         val traktAuthUiState by remember {
             TraktAuthRepository.ensureLoaded()
@@ -423,6 +429,7 @@ fun SettingsScreen(
                         tmdbSettings = tmdbSettings,
                         mdbListSettings = mdbListSettings,
                         debridSettings = debridSettings,
+                        telegramUiState = telegramUiState,
                         traktAuthUiState = traktAuthUiState,
                         simklAuthUiState = simklAuthUiState,
                         traktCommentsEnabled = traktCommentsEnabled,
@@ -489,6 +496,7 @@ fun SettingsScreen(
                         tmdbSettings = tmdbSettings,
                         mdbListSettings = mdbListSettings,
                         debridSettings = debridSettings,
+                        telegramUiState = telegramUiState,
                         traktAuthUiState = traktAuthUiState,
                         simklAuthUiState = simklAuthUiState,
                         traktCommentsEnabled = traktCommentsEnabled,
@@ -567,6 +575,7 @@ private fun MobileSettingsScreen(
     tmdbSettings: TmdbSettings,
     mdbListSettings: MdbListSettings,
     debridSettings: DebridSettings,
+    telegramUiState: TelegramUiState,
     traktAuthUiState: TraktAuthUiState,
     simklAuthUiState: SimklAuthUiState,
     traktCommentsEnabled: Boolean,
@@ -824,6 +833,7 @@ private fun MobileSettingsScreen(
                     onTmdbClick = { onPageChange(SettingsPage.TmdbEnrichment) },
                     onMdbListClick = { onPageChange(SettingsPage.MdbListRatings) },
                     onDebridClick = { onPageChange(SettingsPage.Debrid) },
+                    onTelegramClick = { onPageChange(SettingsPage.Telegram) },
                 )
                 SettingsPage.TmdbEnrichment -> tmdbSettingsContent(
                     isTablet = false,
@@ -836,6 +846,10 @@ private fun MobileSettingsScreen(
                 SettingsPage.Debrid -> debridSettingsContent(
                     isTablet = false,
                     settings = debridSettings,
+                )
+                SettingsPage.Telegram -> telegramSettingsContent(
+                    isTablet = false,
+                    uiState = telegramUiState,
                 )
                 SettingsPage.TraktAuthentication -> trackingSettingsContent(
                     isTablet = false,
@@ -938,6 +952,7 @@ private fun TabletSettingsScreen(
     tmdbSettings: TmdbSettings,
     mdbListSettings: MdbListSettings,
     debridSettings: DebridSettings,
+    telegramUiState: TelegramUiState,
     traktAuthUiState: TraktAuthUiState,
     simklAuthUiState: SimklAuthUiState,
     traktCommentsEnabled: Boolean,
@@ -1251,6 +1266,7 @@ private fun TabletSettingsScreen(
                         onTmdbClick = { onPageChange(SettingsPage.TmdbEnrichment) },
                         onMdbListClick = { onPageChange(SettingsPage.MdbListRatings) },
                         onDebridClick = { onPageChange(SettingsPage.Debrid) },
+                        onTelegramClick = { onPageChange(SettingsPage.Telegram) },
                     )
                     SettingsPage.TmdbEnrichment -> tmdbSettingsContent(
                         isTablet = true,
@@ -1263,6 +1279,10 @@ private fun TabletSettingsScreen(
                     SettingsPage.Debrid -> debridSettingsContent(
                         isTablet = true,
                         settings = debridSettings,
+                    )
+                    SettingsPage.Telegram -> telegramSettingsContent(
+                        isTablet = true,
+                        uiState = telegramUiState,
                     )
                     SettingsPage.TraktAuthentication -> trackingSettingsContent(
                         isTablet = true,

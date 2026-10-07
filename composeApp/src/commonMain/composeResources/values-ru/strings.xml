@@ -514,6 +514,7 @@
     <string name="compose_settings_page_streams">Потоки</string>
     <string name="settings_appearance_section_streams">ПОТОКИ</string>
     <string name="compose_settings_page_supporters_contributors">Сторонники и участники</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">TMDB Дополнение</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_page_tracking">Отслеживание</string>
@@ -810,6 +811,7 @@
     <string name="settings_integrations_tmdb_description">Элементы управления обогащением метаданных</string>
     <string name="settings_integrations_mdblist_description">Внешние поставщики рейтингов</string>
     <string name="settings_integrations_debrid_description">Подключите учетные записи для получения ссылок и доступа к библиотеке.</string>
+    <string name="settings_integrations_telegram_description">Подключите аккаунт Telegram для потоковой передачи медиа</string>
     <string name="settings_debrid_section_title">ПОДКЛЮЧЕННЫЕ УСЛУГИ</string>
     <string name="settings_debrid_experimental_notice">Эти интеграции являются экспериментальными и могут быть сохранены, изменены или удалены позже.</string>
     <string name="settings_debrid_cloud_library">Облачная библиотека</string>

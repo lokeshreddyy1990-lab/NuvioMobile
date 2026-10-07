@@ -427,6 +427,7 @@
     <string name="compose_settings_page_streams">Streams</string>
     <string name="settings_appearance_section_streams">STREAMS</string>
     <string name="compose_settings_page_supporters_contributors">Supporters et contributeurs</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">Enrichissement TMDB</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_root_about_section">À PROPOS</string>
@@ -661,6 +662,7 @@
     <string name="settings_integrations_tmdb_description">Enrichissez les pages de détails avec de l’art, des crédits, des métadonnées d’épisodes et plus depuis TMDB.</string>
     <string name="settings_integrations_mdblist_description">Ajoutez des notes externes d’IMDb, Rotten Tomatoes, Metacritic et d’autres aux pages de détails.</string>
     <string name="settings_integrations_debrid_description">Connectez des comptes pour les liens et l’accès à la bibliothèque</string>
+    <string name="settings_integrations_telegram_description">Connectez votre compte Telegram pour diffuser des médias</string>
     <string name="settings_debrid_section_title">SERVICES CONNECTÉS</string>
     <string name="settings_debrid_experimental_notice">Ces intégrations sont expérimentales et peuvent être conservées, modifiées ou supprimées plus tard.</string>
     <string name="settings_debrid_cloud_library">Cloud library</string>

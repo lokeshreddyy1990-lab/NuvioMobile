@@ -439,6 +439,7 @@
     <string name="compose_settings_page_streams">Yayınlar</string>
     <string name="settings_appearance_section_streams">YAYINLAR</string>
     <string name="compose_settings_page_supporters_contributors">Destekçiler &amp; Katkıda Bulunanlar</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">TMDB zenginleştirme</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_page_tracking">Takip</string>
@@ -733,6 +734,7 @@
     <string name="settings_integrations_tmdb_description">Detay sayfalarını TMDB görselleri, ekip bilgileri, bölüm meta verileri ve daha fazlasıyla zenginleştir.</string>
     <string name="settings_integrations_mdblist_description">Detay sayfalarına IMDb, Rotten Tomatoes, Metacritic ve diğer dış puanları ekle.</string>
     <string name="settings_integrations_debrid_description">Bağlantı ve kitaplık erişimi için hesapları bağla</string>
+    <string name="settings_integrations_telegram_description">Medya akışı için Telegram hesabını bağla</string>
     <string name="settings_debrid_section_title">BAĞLI SERVİSLER</string>
     <string name="settings_debrid_experimental_notice">Bu entegrasyonlar deneyseldir; gelecekte tutulabilir, değiştirilebilir veya tamamen kaldırılabilir.</string>
     <string name="settings_debrid_cloud_library">Bulut kitaplığı</string>

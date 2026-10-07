@@ -452,6 +452,7 @@
     <string name="compose_settings_page_streams">مصادر البث</string>
     <string name="settings_appearance_section_streams">مصادر البث</string>
     <string name="compose_settings_page_supporters_contributors">الداعمون والمساهمون</string>
+    <string name="compose_settings_page_telegram">Telegram</string>
     <string name="compose_settings_page_tmdb_enrichment">إثراء بيانات TMDB</string>
     <string name="compose_settings_page_trakt">Trakt</string>
     <string name="compose_settings_page_tracking">التتبع</string>
@@ -746,6 +747,7 @@
     <string name="settings_integrations_tmdb_description">عناصر التحكم في إثراء البيانات الوصفية</string>
     <string name="settings_integrations_mdblist_description">مصادر التقييمات الخارجية</string>
     <string name="settings_integrations_debrid_description">ربط الحسابات للحصول على الروابط والوصول للمكتبات</string>
+    <string name="settings_integrations_telegram_description">اربط حساب تيليجرام لبث الوسائط</string>
     <string name="settings_debrid_section_title">الخدمات المرتبطة</string>
     <string name="settings_debrid_experimental_notice">عمليات التكامل هذه تجريبية وقد يتم الإبقاء عليها أو تعديلها أو إزالتها لاحقًا.</string>
     <string name="settings_debrid_cloud_library">المكتبة السحابية</string>
