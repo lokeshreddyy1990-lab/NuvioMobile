@@ -332,6 +332,9 @@ object PlayerSettingsRepository {
                 ?: SubtitleStyleState.DEFAULT.useForcedSubtitles,
             showOnlyPreferredLanguages = PlayerSettingsStorage.loadSubtitleShowOnlyPreferredLanguages()
                 ?: SubtitleStyleState.DEFAULT.showOnlyPreferredLanguages,
+            subAssOverride = PlayerSettingsStorage.loadSubAssOverride()
+                ?.let { runCatching { AssOverrideMode.valueOf(it) }.getOrNull() }
+                ?: SubtitleStyleState.DEFAULT.subAssOverride,
         )
         streamReuseLastLinkEnabled = PlayerSettingsStorage.loadStreamReuseLastLinkEnabled() ?: false
         streamReuseLastLinkCacheHours = PlayerSettingsStorage.loadStreamReuseLastLinkCacheHours() ?: 24
@@ -612,6 +615,13 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveSubtitleStripSdh(normalized.stripSdh)
         PlayerSettingsStorage.saveSubtitleUseForcedSubtitles(normalized.useForcedSubtitles)
         PlayerSettingsStorage.saveSubtitleShowOnlyPreferredLanguages(normalized.showOnlyPreferredLanguages)
+        PlayerSettingsStorage.saveSubAssOverride(normalized.subAssOverride.name)
+    }
+
+    fun setSubAssOverride(mode: AssOverrideMode) {
+        ensureLoaded()
+        if (subtitleStyle.subAssOverride == mode) return
+        setSubtitleStyle(subtitleStyle.copy(subAssOverride = mode))
     }
 
     fun setStreamReuseLastLinkEnabled(enabled: Boolean) {

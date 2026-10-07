@@ -37,6 +37,11 @@ import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_action_off
 import nuvio.composeapp.generated.resources.compose_action_on
 import nuvio.composeapp.generated.resources.compose_player_auto_sync
+import nuvio.composeapp.generated.resources.compose_player_ass_override
+import nuvio.composeapp.generated.resources.compose_player_ass_override_colors
+import nuvio.composeapp.generated.resources.compose_player_ass_override_force
+import nuvio.composeapp.generated.resources.compose_player_ass_override_preserve
+import nuvio.composeapp.generated.resources.compose_player_ass_override_scale
 import nuvio.composeapp.generated.resources.compose_player_bold
 import nuvio.composeapp.generated.resources.compose_player_bottom_offset
 import nuvio.composeapp.generated.resources.compose_player_capture_line
@@ -183,6 +188,29 @@ fun SubtitleStylePanel(
             )
         }
 
+        SubtitleStyleSection(title = stringResource(Res.string.compose_player_ass_override)) {
+            val modes = listOf(
+                AssOverrideMode.Preserve to Res.string.compose_player_ass_override_preserve,
+                AssOverrideMode.ScaleOnly to Res.string.compose_player_ass_override_scale,
+                AssOverrideMode.OverrideColorsAndOutlines to Res.string.compose_player_ass_override_colors,
+                AssOverrideMode.ForceFullOverride to Res.string.compose_player_ass_override_force,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                modes.forEach { (mode, labelRes) ->
+                    SubtitleModeChip(
+                        label = stringResource(labelRes),
+                        selected = style.subAssOverride == mode,
+                        onClick = { onStyleChanged(style.copy(subAssOverride = mode)) },
+                    )
+                }
+            }
+        }
+
         SubtitleAutoSyncSection(
             selectedAddonSubtitle = selectedAddonSubtitle,
             state = subtitleAutoSyncState,
@@ -296,6 +324,31 @@ private fun SubtitleToggleChip(
             },
             color = if (enabled) tokens.colors.onAccent else Color.White,
             style = MaterialTheme.typography.labelLarge,
+        )
+    }
+}
+
+@Composable
+private fun SubtitleModeChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val tokens = MaterialTheme.nuvio
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) tokens.colors.accent else Color.White.copy(alpha = 0.08f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = label,
+            color = if (selected) tokens.colors.onAccent else Color.White,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

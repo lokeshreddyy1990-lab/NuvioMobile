@@ -1677,14 +1677,21 @@ private class NuvioLibmpvView(
 
             override fun applySubtitleStyle(style: SubtitleStyleState) {
                 executeMpv {
-                    mpv.setPropertyString("sub-ass-override", "no")
+                    val fontSize = style.toMpvSubtitleFontSize()
+                    // Full mpv parity with PlayTorrioV3: honour the user's ASS/SSA script
+                    // override mode and, when overriding, inject the forced style payload.
+                    mpv.setPropertyString("sub-ass-override", style.subAssOverride.mpvValue)
+                    mpv.setPropertyString("sub-ass-force-margins", "yes")
+                    mpv.setPropertyString("sub-use-margins", "yes")
+                    // Empty string clears any previously forced style (Preserve mode).
+                    mpv.setPropertyString("sub-ass-force-style", buildAssForceStyleString(style, fontSize))
                     mpv.setPropertyString("sub-color", style.textColor.toMpvColor())
                     mpv.setPropertyString("sub-back-color", style.backgroundColor.toMpvColor())
                     mpv.setPropertyString("sub-outline-color", style.outlineColor.toMpvColor())
                     mpv.setPropertyString("sub-border-color", style.outlineColor.toMpvColor())
                     mpv.setPropertyString("sub-border-style", style.toMpvSubtitleBorderStyle())
                     mpv.setPropertyString("sub-bold", if (style.bold) "yes" else "no")
-                    mpv.setPropertyInt("sub-font-size", style.toMpvSubtitleFontSize())
+                    mpv.setPropertyInt("sub-font-size", fontSize)
                     mpv.setPropertyInt("sub-outline-size", style.toMpvSubtitleOutlineSize())
                     mpv.setPropertyInt("sub-border-size", style.toMpvSubtitleOutlineSize())
                     mpv.setPropertyInt("sub-pos", (100 - style.bottomOffset / 10).coerceIn(0, 100))
@@ -2036,20 +2043,30 @@ private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipScale: F
         val offsetFraction = (style.bottomOffset / 1000f).coerceIn(0f, 0.2f)
         val bottomPaddingFraction = (baseBottomPaddingFraction + offsetFraction).coerceIn(0f, 0.4f)
 
-        setApplyEmbeddedStyles(false)
-        setApplyEmbeddedFontSizes(false)
+        // Best-effort mapping of mpv's sub-ass-override onto the ExoPlayer SubtitleView:
+        // the peerless libass overlay always uses embedded ASS styling (there is no
+        // style-override API), so this only affects non-ASS cues rendered by SubtitleView.
+        // Preserve / ScaleOnly keep authored styling; the override modes disable it and
+        // apply the user's CaptionStyleCompat instead.
+        val preserveEmbedded = style.subAssOverride == AssOverrideMode.Preserve ||
+            style.subAssOverride == AssOverrideMode.ScaleOnly
+
         setBottomPaddingFraction(bottomPaddingFraction)
-        setStyle(
-            CaptionStyleCompat(
-                style.textColor.toArgb(),
-                style.backgroundColor.toArgb(),
-                android.graphics.Color.TRANSPARENT,
-                if (style.outlineEnabled) CaptionStyleCompat.EDGE_TYPE_OUTLINE else CaptionStyleCompat.EDGE_TYPE_NONE,
-                style.outlineColor.toArgb(),
-                if (style.bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT,
+        setApplyEmbeddedStyles(preserveEmbedded)
+        setApplyEmbeddedFontSizes(preserveEmbedded)
+        if (!preserveEmbedded) {
+            setStyle(
+                CaptionStyleCompat(
+                    style.textColor.toArgb(),
+                    style.backgroundColor.toArgb(),
+                    android.graphics.Color.TRANSPARENT,
+                    if (style.outlineEnabled) CaptionStyleCompat.EDGE_TYPE_OUTLINE else CaptionStyleCompat.EDGE_TYPE_NONE,
+                    style.outlineColor.toArgb(),
+                    if (style.bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT,
+                )
             )
-        )
-        setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSizeSp.toFloat() * pipScale)
+            setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSizeSp.toFloat() * pipScale)
+        }
     }
 }
 

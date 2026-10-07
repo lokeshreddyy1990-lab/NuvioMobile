@@ -61,6 +61,7 @@ import com.nuvio.app.features.player.exoNativeMemoryInfo
 import com.nuvio.app.features.player.isExoNativeMemorySupported
 import com.nuvio.app.features.player.playbackCacheUsableSpaceBytes
 import com.nuvio.app.features.player.AndroidPlaybackEngine
+import com.nuvio.app.features.player.AssOverrideMode
 import com.nuvio.app.features.player.AudioLanguageOption
 import com.nuvio.app.features.player.AvailableLanguageOptions
 import com.nuvio.app.features.player.ExternalPlayerApp
@@ -349,6 +350,7 @@ private fun PlaybackSettingsSection(
     var showIosTargetPrimariesDialog by remember { mutableStateOf(false) }
     var showIosTargetTransferDialog by remember { mutableStateOf(false) }
     var showLibassRenderTypeDialog by remember { mutableStateOf(false) }
+    var showAssOverrideDialog by remember { mutableStateOf(false) }
     var showAutoPlayModeDialog by remember { mutableStateOf(false) }
     var showAutoPlaySourceDialog by remember { mutableStateOf(false) }
     var showAutoPlayAddonSelectionDialog by remember { mutableStateOf(false) }
@@ -704,6 +706,14 @@ private fun PlaybackSettingsSection(
                         )
                     }
                 }
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = stringResource(Res.string.settings_playback_ass_override_mode),
+                    description = stringResource(Res.string.settings_playback_ass_override_mode_description),
+                    enabled = subtitleRenderingEnabled,
+                    isTablet = isTablet,
+                    onClick = { showAssOverrideDialog = true },
+                )
             }
         }
 
@@ -1878,6 +1888,17 @@ private fun PlaybackSettingsSection(
         )
     }
 
+    if (showAssOverrideDialog) {
+        AssOverrideModeDialog(
+            selectedMode = autoPlayPlayerSettings.subtitleStyle.subAssOverride,
+            onModeSelected = { mode ->
+                PlayerSettingsRepository.setSubAssOverride(mode)
+                showAssOverrideDialog = false
+            },
+            onDismiss = { showAssOverrideDialog = false },
+        )
+    }
+
     if (showAutoPlayModeDialog) {
         StreamAutoPlayModeDialog(
             selectedMode = autoPlayPlayerSettings.streamAutoPlayMode,
@@ -2327,7 +2348,45 @@ private fun LibassRenderTypeDialog(
     }
 }
 
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun AssOverrideModeDialog(
+    selectedMode: AssOverrideMode,
+    onModeSelected: (AssOverrideMode) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val options = listOf(
+        AssOverrideMode.Preserve to Res.string.settings_playback_ass_override_preserve,
+        AssOverrideMode.ScaleOnly to Res.string.settings_playback_ass_override_scale,
+        AssOverrideMode.OverrideColorsAndOutlines to Res.string.settings_playback_ass_override_colors,
+        AssOverrideMode.ForceFullOverride to Res.string.settings_playback_ass_override_force,
+    )
 
+    DialogSurface(
+        onDismissRequest = onDismiss,
+        title = stringResource(Res.string.settings_playback_ass_override_mode),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            options.forEach { (mode, labelRes) ->
+                DialogOption(
+                    text = stringResource(labelRes),
+                    selected = mode == selectedMode,
+                    onClick = { onModeSelected(mode) },
+                )
+            }
+        }
+
+        DialogButtons {
+            DialogButton(
+                text = stringResource(Res.string.action_done),
+                onClick = onDismiss,
+            )
+        }
+    }
+}
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)

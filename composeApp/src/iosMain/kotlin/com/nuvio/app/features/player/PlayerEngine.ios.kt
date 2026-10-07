@@ -36,6 +36,7 @@ import nuvio.composeapp.generated.resources.action_play
 import nuvio.composeapp.generated.resources.player_error_mpv_unavailable
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+import kotlin.math.roundToInt
 
 private const val TAG = "NuvioiOSPlayer"
 
@@ -269,15 +270,19 @@ actual fun PlatformPlayerSurface(
             }
 
             override fun applySubtitleStyle(style: SubtitleStyleState) {
+                val fontSize = style.toMpvSubtitleFontSize()
                 bridge.applySubtitleStyle(
                     textColor = style.textColor.toMpvColorString(),
                     backgroundColor = style.backgroundColor.toMpvColorString(),
                     outlineColor = style.outlineColor.toMpvColorString(),
                     outlineSize = if (style.outlineEnabled) style.outlineWidth.toFloat() else 0f,
                     bold = style.bold,
-                    fontSize = style.toMpvSubtitleFontSize(),
+                    fontSize = fontSize,
                     subPos = style.toMpvSubtitlePosition(),
                     stripSdh = style.stripSdh,
+                    assOverride = style.subAssOverride.mpvValue,
+                    // Force-style Fontsize matches this engine's own sub-font-size scaling.
+                    forceStyle = buildAssForceStyleString(style, fontSize.roundToInt()),
                 )
             }
         }
