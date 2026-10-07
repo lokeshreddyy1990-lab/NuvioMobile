@@ -275,6 +275,32 @@ class TelegramSplitFilesTest {
     }
 
     @Test
+    fun udfAnchorIdentifiesSplitDiscImagesWithoutIso9660Tree() {
+        // A UDF-only Blu-ray image has no ISO9660 `CD001` descriptor, so the ISO9660 scanner
+        // cannot see it, but it does carry the UDF Volume Recognition Sequence (`NSR0`) at
+        // sector 256. That anchor is exactly what gates the raw-image fallback for
+        // `*.iso.001` / `*.zip.iso.001` uploads, so the two results must disagree.
+        val anchorSector = 256 * 2048
+        val udf = ByteArray(anchorSector + 4096)
+        "NSR0".encodeToByteArray().copyInto(udf, anchorSector + 1)
+        val readUdf: (Long, Int) -> ByteArray = { offset, length ->
+            udf.copyOfRange(offset.toInt(), minOf(offset.toInt() + length, udf.size))
+        }
+        assertTrue(hasUdfAnchor(udf.size.toLong(), readUdf))
+        // The ISO9660-only scanner finds nothing, which is why the fallback is required.
+        assertNull(findTelegramIsoEntry(udf.size.toLong(), null, null, readUdf))
+
+        val junk = ByteArray(anchorSector + 4096) { 0x7f }
+        val readJunk: (Long, Int) -> ByteArray = { offset, length ->
+            junk.copyOfRange(offset.toInt(), minOf(offset.toInt() + length, junk.size))
+        }
+        assertFalse(hasUdfAnchor(junk.size.toLong(), readJunk))
+
+        // Too small to hold the anchor sector: must not throw and must not claim a disc image.
+        assertFalse(hasUdfAnchor(1024L) { _, _ -> null })
+    }
+
+    @Test
     fun sameNameAndSizeCollapseAcrossChats() {
         val first = telegramStream(
             url = "http://127.0.0.1:1/telegram/v/1/Dune.mkv",
