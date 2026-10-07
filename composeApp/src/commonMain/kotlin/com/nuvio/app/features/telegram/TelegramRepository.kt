@@ -214,6 +214,10 @@ object TelegramRepository {
                     season = season,
                     episode = episode,
                     chatTitles = chatTitles,
+                ) ?: rawIsoStreamItem(
+                    hits = ordered,
+                    displayName = split.displayName,
+                    chatTitles = chatTitles,
                 )
             } else {
                 virtualStreamItem(
@@ -325,6 +329,7 @@ object TelegramRepository {
         season: Int?,
         episode: Int?,
         chatTitles: MutableMap<Long, String>,
+        mimeOverride: String? = null,
     ): StreamItem? {
         val playbackParts = hits.map { TelegramPlaybackPart(fileId = it.fileId, size = it.fileSize) }
         val fileName: String
@@ -378,7 +383,7 @@ object TelegramRepository {
         } else {
             fileName = displayName
             fileSize = playbackParts.sumOf { it.size }
-            mimeType = hits.first().mimeType ?: mimeTypeForFileName(displayName)
+            mimeType = mimeOverride ?: hits.first().mimeType ?: mimeTypeForFileName(displayName)
             innerOffset = 0
             innerSize = fileSize
             label = fileName
@@ -407,6 +412,38 @@ object TelegramRepository {
                 videoSize = fileSize,
                 filename = fileName,
             ),
+        )
+    }
+
+    /**
+     * Surfaces a split disc image whose ISO9660 tree could not be read — typically a UDF-only
+     * Blu-ray image, which `Movie.iso.001` / `Movie.zip.iso.001` uploads often are.
+     *
+     * Unlike a plain video split, an ISO is a filesystem, not a bitstream, so there is no
+     * title range to expose; the whole reassembled image is published as a virtual URL and
+     * handed to the engine to mount. Gated on the UDF anchor so a non-disc `.iso.001` (an
+     * audio ISO, a corrupt upload) stays hidden rather than failing on tap.
+     */
+    private fun rawIsoStreamItem(
+        hits: List<TelegramHit>,
+        displayName: String,
+        chatTitles: MutableMap<Long, String>,
+    ): StreamItem? {
+        val playbackParts = hits.map { TelegramPlaybackPart(fileId = it.fileId, size = it.fileSize) }
+        val imageSize = playbackParts.sumOf { it.size }
+        if (imageSize <= 0L) return null
+        val isDiscImage = hasUdfAnchor(imageSize) { offset, length ->
+            TelegramPlatformClient.readConcat(playbackParts, offset, length)
+        }
+        if (!isDiscImage) return null
+        return virtualStreamItem(
+            hits = hits,
+            isZip = false,
+            displayName = displayName,
+            season = null,
+            episode = null,
+            chatTitles = chatTitles,
+            mimeOverride = mimeTypeForFileName(displayName),
         )
     }
 
