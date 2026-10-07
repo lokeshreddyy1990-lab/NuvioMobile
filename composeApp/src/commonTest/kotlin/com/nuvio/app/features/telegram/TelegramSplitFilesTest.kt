@@ -1,5 +1,7 @@
 package com.nuvio.app.features.telegram
 
+import com.nuvio.app.features.streams.StreamBehaviorHints
+import com.nuvio.app.features.streams.StreamItem
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -187,7 +189,131 @@ class TelegramSplitFilesTest {
         )
         assertNull(findTelegramIsoEntry(0L) { _, _ -> null })
     }
+
+    @Test
+    fun isoZipVolumesShareAGroupKey() {
+        val first = parseTelegramSplitInfo("Dune.2021.2160p.iso.zip.001")
+        val second = parseTelegramSplitInfo("Dune.2021.2160p.iso.zip.002")
+        assertNotNull(first)
+        assertNotNull(second)
+        assertTrue(first.isZip)
+        assertFalse(first.isIso)
+        assertEquals(first.groupKey, second.groupKey)
+        assertEquals("dune.2021.2160p.iso.zip", first.groupKey)
+        assertEquals("Dune.2021.2160p.iso.zip", first.displayName)
+        assertEquals(1, first.partNumber)
+        assertEquals(2, second.partNumber)
+        assertTrue(contiguousTelegramParts(listOf(1, 2)))
+    }
+
+    @Test
+    fun discImageInsideZipIsSelectableAndNotMistakenForVideo() {
+        val zip = storedZip(
+            listOf(
+                "readme.txt" to byteArrayOf(1, 2),
+                "Dune.2021.iso" to ByteArray(1024) { 0x11 },
+            ),
+        )
+        val entries = parseTelegramZipEntries(zip)
+        // A video-only lookup must not steal the disc entry.
+        assertNull(selectTelegramZipEntry(entries, season = null, episode = null))
+        val disc = selectTelegramZipDiscEntry(entries)
+        assertNotNull(disc)
+        assertEquals("Dune.2021.iso", disc.name)
+        assertEquals(1024, disc.size)
+        assertEquals(ZIP_STORED, disc.method)
+    }
+
+    @Test
+    fun discEntryPrefersTheLargestImage() {
+        val zip = storedZip(
+            listOf(
+                "cover.img" to ByteArray(16) { 0x01 },
+                "Dune.2021.iso" to ByteArray(4096) { 0x02 },
+            ),
+        )
+        val disc = selectTelegramZipDiscEntry(parseTelegramZipEntries(zip))
+        assertNotNull(disc)
+        assertEquals("Dune.2021.iso", disc.name)
+        assertEquals(4096, disc.size)
+    }
+
+    @Test
+    fun zipWrappingIsoReadsTheTitleInside() {
+        // This is the `Movie.iso.zip.001` shape: the ISO lives inside the archive and the
+        // scanner has to be rebased on the entry's own bytes at `dataOffset`. Blu-ray
+        // `STREAM/*.m2ts` payloads carry no size floor (only DVD `VTS_*` does), so the
+        // fixture stays small enough to build in memory.
+        val zip = storedZip(
+            listOf(
+                "Dune.2021.iso" to isoImage(
+                    listOf(
+                        "STREAM/00000.m2ts" to ByteArray(4_096) { 0x11 },
+                        "STREAM/00001.m2ts" to ByteArray(8_192) { 0x22 },
+                    ),
+                ),
+            ),
+        )
+        val entries = parseTelegramZipEntries(zip)
+        assertNull(selectTelegramZipEntry(entries, season = null, episode = null))
+        val disc = selectTelegramZipDiscEntry(entries)
+        assertNotNull(disc)
+        val base = disc.dataOffset
+        val entry = findTelegramIsoEntry(disc.size) { offset, length ->
+            zip.copyOfRange((base + offset).toInt(), minOf((base + offset + length).toInt(), zip.size))
+        }
+        assertNotNull(entry)
+        assertEquals("00001.m2ts", entry.name)
+        assertEquals(8_192L, entry.size)
+        // The exposed range must be the payload's own bytes, read through the zip offset.
+        assertTrue(
+            zip.copyOfRange(
+                (base + entry.offset).toInt(),
+                (base + entry.offset + entry.size).toInt(),
+            ).all { it == 0x22.toByte() },
+        )
+    }
+
+    @Test
+    fun sameNameAndSizeCollapseAcrossChats() {
+        val first = telegramStream(
+            url = "http://127.0.0.1:1/telegram/v/1/Dune.mkv",
+            name = "Dune.2021.2160p.mkv",
+            size = 4_000L,
+        )
+        // Same release mirrored in another chat: a different file id, so a different URL.
+        val mirror = telegramStream(
+            url = "http://127.0.0.1:1/telegram/v/9/Dune.mkv",
+            name = "Dune.2021.2160p.mkv",
+            size = 4_000L,
+        )
+        // A different release that happens to share the name must survive.
+        val other = telegramStream(
+            url = "http://127.0.0.1:1/telegram/v/7/Dune.mkv",
+            name = "Dune.2021.2160p.mkv",
+            size = 8_000L,
+        )
+        val deduped = listOf(first, mirror, other).distinctBy(::telegramStreamIdentity)
+        assertEquals(2, deduped.size)
+        assertEquals(first.url, deduped.first().url)
+        assertEquals(other.url, deduped.last().url)
+    }
+
+    @Test
+    fun differentlyNamedFilesAreNeverCollapsed() {
+        val a = telegramStream("http://127.0.0.1:1/telegram/v/1/a.mkv", "Movie.mkv", 4_000L)
+        val b = telegramStream("http://127.0.0.1:1/telegram/v/2/b.mkv", "Movie.2024.mkv", 4_000L)
+        assertEquals(2, listOf(a, b).distinctBy(::telegramStreamIdentity).size)
+    }
 }
+
+private fun telegramStream(url: String, name: String, size: Long): StreamItem = StreamItem(
+    url = url,
+    name = name,
+    addonName = "Telegram",
+    addonId = "telegram",
+    behaviorHints = StreamBehaviorHints(videoSize = size),
+)
 
 private fun storedZip(files: List<Pair<String, ByteArray>>): ByteArray {
     val locals = ArrayList<ByteArray>()

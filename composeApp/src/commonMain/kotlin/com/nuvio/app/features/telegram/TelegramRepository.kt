@@ -258,7 +258,7 @@ object TelegramRepository {
             }
             streams += singleStreamItem(hit, chatTitles) ?: continue
         }
-        streams.distinctBy { it.url }
+        streams.distinctBy(::telegramStreamIdentity)
     }
 
     private fun telegramHit(message: JsonObject): TelegramHit? {
@@ -332,23 +332,56 @@ object TelegramRepository {
         val mimeType: String?
         val innerOffset: Long
         val innerSize: Long
+        val label: String
         if (isZip) {
             val zipSize = playbackParts.sumOf { it.size }
             val entries = parseTelegramZipEntries(zipSize) { offset, length ->
                 TelegramPlatformClient.readConcat(playbackParts, offset, length)
             }
-            val entry = selectTelegramZipEntry(entries, season, episode) ?: return null
-            fileName = entry.name
-            fileSize = entry.size
-            mimeType = mimeTypeForFileName(entry.name)
-            innerOffset = entry.dataOffset
-            innerSize = entry.size
+            val videoEntry = selectTelegramZipEntry(entries, season, episode)
+            if (videoEntry != null) {
+                fileName = videoEntry.name
+                fileSize = videoEntry.size
+                mimeType = mimeTypeForFileName(videoEntry.name)
+                innerOffset = videoEntry.dataOffset
+                innerSize = videoEntry.size
+                label = videoEntry.name
+            } else {
+                // The archive can also wrap a disc image (`Movie.iso.zip.001`). An ISO is a
+                // filesystem, not a bitstream, so open it and surface the title inside. The
+                // entry's own bytes begin at `dataOffset` in the concatenated volumes.
+                val discEntry = selectTelegramZipDiscEntry(entries) ?: return null
+                val base = discEntry.dataOffset
+                val readDisc: (Long, Int) -> ByteArray? = { offset, length ->
+                    TelegramPlatformClient.readConcat(playbackParts, base + offset, length)
+                }
+                val inner = findTelegramIsoEntry(discEntry.size, season, episode, readDisc)
+                if (inner != null) {
+                    fileName = inner.name
+                    fileSize = inner.size
+                    mimeType = mimeTypeForFileName(inner.name)
+                    innerOffset = base + inner.offset
+                    innerSize = inner.size
+                    label = "$displayName ▸ ${inner.name}"
+                } else {
+                    // No readable ISO9660 tree. A UDF-only disc may still mount, so expose
+                    // the raw image rather than hiding the upload.
+                    if (!hasUdfAnchor(discEntry.size, readDisc)) return null
+                    fileName = discEntry.name
+                    fileSize = discEntry.size
+                    mimeType = mimeTypeForFileName(discEntry.name)
+                    innerOffset = base
+                    innerSize = discEntry.size
+                    label = fileName
+                }
+            }
         } else {
             fileName = displayName
             fileSize = playbackParts.sumOf { it.size }
             mimeType = hits.first().mimeType ?: mimeTypeForFileName(displayName)
             innerOffset = 0
             innerSize = fileSize
+            label = fileName
         }
         val url = TelegramPlatformClient.virtualPlaybackUrl(
             TelegramVirtualPlaybackSpec(
@@ -362,8 +395,8 @@ object TelegramRepository {
         val chatTitle = chatTitle(hits.first().chatId, chatTitles)
         val caption = hits.first().caption
         return StreamItem(
-            name = fileName,
-            title = fileName,
+            name = label,
+            title = label,
             description = listOfNotNull(chatTitle, caption?.takeIf { it.isNotBlank() }).joinToString(" • "),
             url = url,
             sourceName = chatTitle,
@@ -667,3 +700,18 @@ private fun JsonObject.string(key: String): String? = this[key]?.jsonPrimitive?.
 private fun JsonObject.int(key: String): Int = this[key]?.jsonPrimitive?.intOrNull ?: 0
 private fun JsonObject.long(key: String): Long = this[key]?.jsonPrimitive?.longOrNull ?: 0L
 private fun JsonObject.objectValue(key: String): JsonObject? = this[key] as? JsonObject
+
+/**
+ * Identity used to collapse duplicate Telegram rows.
+ *
+ * Telegram hands out a single `fileId` per file, but the same release is often reposted in
+ * several chats, so every copy receives its own playback URL and a URL-keyed dedup cannot
+ * see them as one. Chat provenance is deliberately excluded: rows collapse on what the
+ * user actually sees — provider, visible name, and size — so the same movie posted
+ * twice shows once while a differently sized release stays separate.
+ */
+internal fun telegramStreamIdentity(stream: StreamItem): String = listOf(
+    stream.addonId,
+    stream.streamLabel.trim().lowercase(),
+    (stream.behaviorHints.videoSize ?: -1L).toString(),
+).joinToString("|")

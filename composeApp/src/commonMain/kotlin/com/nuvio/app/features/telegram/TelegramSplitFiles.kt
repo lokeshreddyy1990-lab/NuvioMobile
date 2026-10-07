@@ -178,6 +178,18 @@ fun selectTelegramZipEntry(
     return videos.firstOrNull { telegramInnerMatchesEpisode(it.name, season, episode) }
 }
 
+/**
+ * Picks a disc image stored inside a split ZIP (`Movie.iso.zip.001`).
+ *
+ * The archive is only a container here: the payload is an `.iso`/`.img` that must be
+ * opened before anything can play, so a video-only lookup can never select it. Volumes are
+ * already concatenated by the caller, so the largest stored entry is the best candidate.
+ */
+fun selectTelegramZipDiscEntry(entries: List<TelegramZipEntry>): TelegramZipEntry? =
+    entries
+        .filter { it.method == ZIP_STORED && it.size > 0 && hasTelegramExtension(it.name, ISO_EXTENSIONS) }
+        .maxByOrNull { it.size }
+
 fun contiguousTelegramParts(parts: Collection<Int>): Boolean {
     if (parts.isEmpty()) return false
     val sorted = parts.sorted()
