@@ -393,6 +393,7 @@ private fun ExoPlayerSurface(
             videoBoundsFractionProvider = {
                 playerViewRef?.videoBoundsFraction(latestVideoAspectRatio.value)
             },
+            subtitleScaleProvider = { currentSubtitleStyle.scalePercent / 100f },
         )
             .setExtensionRendererMode(effectiveDecoderPriority)
             .setEnableDecoderFallback(true)
@@ -1716,6 +1717,9 @@ private class NuvioLibmpvView(
                     mpv.setPropertyString("sub-border-style", style.toMpvSubtitleBorderStyle())
                     mpv.setPropertyString("sub-bold", if (style.bold) "yes" else "no")
                     mpv.setPropertyInt("sub-font-size", fontSize)
+                    // Separate multiplier (PlayTorrio parity): scales text and ASS subs without
+                    // touching the base font size used by the force-style payload.
+                    mpv.setPropertyString("sub-scale", (style.scalePercent / 100.0).toString())
                     mpv.setPropertyInt("sub-outline-size", style.toMpvSubtitleOutlineSize())
                     mpv.setPropertyInt("sub-border-size", style.toMpvSubtitleOutlineSize())
                     mpv.setPropertyInt("sub-pos", (100 - style.bottomOffset / 10).coerceIn(0, 100))
@@ -2089,7 +2093,10 @@ private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipScale: F
                     if (style.bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT,
                 )
             )
-            setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSizeSp.toFloat() * pipScale)
+            setFixedTextSize(
+                TypedValue.COMPLEX_UNIT_SP,
+                style.fontSizeSp.toFloat() * (style.scalePercent / 100f) * pipScale,
+            )
         }
     }
 }
@@ -2291,6 +2298,7 @@ private class SubtitleOffsetRenderersFactory(
     private val subtitleDelayUsProvider: () -> Long,
     private val shouldNormalizeCuePositionProvider: () -> Boolean,
     private val shouldStripSdhProvider: () -> Boolean,
+    private val subtitleScaleProvider: () -> Float,
     private val videoBoundsFractionProvider: () -> RectF?,
 ) : DefaultRenderersFactory(context) {
     override fun buildTextRenderers(
@@ -2304,6 +2312,7 @@ private class SubtitleOffsetRenderersFactory(
             delegate = output,
             shouldNormalizeCuePositionProvider = shouldNormalizeCuePositionProvider,
             shouldStripSdhProvider = shouldStripSdhProvider,
+            subtitleScaleProvider = subtitleScaleProvider,
             videoBoundsFractionProvider = videoBoundsFractionProvider,
         )
         val startIndex = out.size
@@ -2320,6 +2329,7 @@ private class SubtitleOffsetRenderersFactory(
 private class CueNormalizingTextOutput(
     private val delegate: TextOutput,
     private val shouldNormalizeCuePositionProvider: () -> Boolean,
+    private val subtitleScaleProvider: () -> Float,
     private val shouldStripSdhProvider: () -> Boolean,
     private val videoBoundsFractionProvider: () -> RectF?,
 ) : TextOutput {
@@ -2352,6 +2362,12 @@ private class CueNormalizingTextOutput(
                     && bounds.width() == 1f && bounds.height() == 1f
                 if (!isIdentity) {
                     processed = remapBitmapCueToVideoBounds(processed, bounds)
+            val scale = subtitleScaleProvider()
+            if (scale != 1f && processed.bitmapHeight != Cue.DIMEN_UNSET) {
+                processed = processed.buildUpon()
+                    .setBitmapHeight(processed.bitmapHeight * scale)
+                    .build()
+            }
                 }
             }
         }

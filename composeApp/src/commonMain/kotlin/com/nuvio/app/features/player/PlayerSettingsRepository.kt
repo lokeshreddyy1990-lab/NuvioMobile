@@ -324,6 +324,8 @@ object PlayerSettingsRepository {
                 ?: SubtitleStyleState.DEFAULT.bold,
             fontSizeSp = (PlayerSettingsStorage.loadSubtitleFontSizeSp()
                 ?: SubtitleStyleState.DEFAULT.fontSizeSp).coerceIn(subtitleFontSizeRangeSp),
+            scalePercent = (PlayerSettingsStorage.loadSubtitleScalePercent()
+                ?: SubtitleStyleState.DEFAULT.scalePercent).coerceIn(subtitleScalePercentRange),
             bottomOffset = PlayerSettingsStorage.loadSubtitleBottomOffset()
                 ?: SubtitleStyleState.DEFAULT.bottomOffset,
             stripSdh = PlayerSettingsStorage.loadSubtitleStripSdh()
@@ -600,7 +602,10 @@ object PlayerSettingsRepository {
 
     fun setSubtitleStyle(style: SubtitleStyleState) {
         ensureLoaded()
-        val normalized = style.copy(fontSizeSp = style.fontSizeSp.coerceIn(subtitleFontSizeRangeSp))
+        val normalized = style.copy(
+            fontSizeSp = style.fontSizeSp.coerceIn(subtitleFontSizeRangeSp),
+            scalePercent = style.scalePercent.coerceIn(subtitleScalePercentRange),
+        )
         if (subtitleStyle == normalized) return
         subtitleStyle = normalized
         publish()
@@ -608,6 +613,7 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveSubtitleBackgroundColor(normalized.backgroundColor.toStorageHexString())
         PlayerSettingsStorage.saveSubtitleOutlineColor(normalized.outlineColor.toStorageHexString())
         PlayerSettingsStorage.saveSubtitleOutlineEnabled(normalized.outlineEnabled)
+        PlayerSettingsStorage.saveSubtitleScalePercent(normalized.scalePercent)
         PlayerSettingsStorage.saveSubtitleOutlineWidth(normalized.outlineWidth)
         PlayerSettingsStorage.saveSubtitleBold(normalized.bold)
         PlayerSettingsStorage.saveSubtitleFontSizeSp(normalized.fontSizeSp)

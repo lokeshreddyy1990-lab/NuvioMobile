@@ -58,6 +58,8 @@ import nuvio.composeapp.generated.resources.compose_player_reset_defaults
 import nuvio.composeapp.generated.resources.compose_player_select_addon_subtitle_first
 import nuvio.composeapp.generated.resources.compose_player_style
 import nuvio.composeapp.generated.resources.compose_player_subtitle_delay
+import nuvio.composeapp.generated.resources.compose_player_subtitle_scale
+import nuvio.composeapp.generated.resources.compose_player_subtitle_scale_value
 import nuvio.composeapp.generated.resources.compose_player_text_opacity
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
@@ -120,6 +122,18 @@ fun SubtitleStylePanel(
                 },
                 onIncrease = {
                     onStyleChanged(style.copy(fontSizeSp = (style.fontSizeSp + 2).coerceAtMost(subtitleFontSizeRangeSp.last)))
+                },
+            )
+        }
+
+        SubtitleStyleSection(title = stringResource(Res.string.compose_player_subtitle_scale)) {
+            SubtitleStyleStepper(
+                value = stringResource(Res.string.compose_player_subtitle_scale_value, style.scalePercent),
+                onDecrease = {
+                    onStyleChanged(style.copy(scalePercent = (style.scalePercent - 10).coerceAtLeast(subtitleScalePercentRange.first)))
+                },
+                onIncrease = {
+                    onStyleChanged(style.copy(scalePercent = (style.scalePercent + 10).coerceAtMost(subtitleScalePercentRange.last)))
                 },
             )
         }

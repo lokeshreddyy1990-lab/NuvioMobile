@@ -170,6 +170,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
         outlineSize: Float,
         bold: Bool,
         fontSize: Float,
+        subScale: Float,
         subPos: Int32,
         stripSdh: Bool,
         assOverride: String,
@@ -182,6 +183,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
             outlineSize: outlineSize,
             bold: bold,
             fontSize: fontSize,
+            subScale: subScale,
             subPos: Int(subPos),
             stripSdh: stripSdh,
             assOverride: assOverride,
@@ -866,6 +868,7 @@ final class MPVPlayerViewController: UIViewController {
         outlineSize: Float,
         bold: Bool,
         fontSize: Float,
+        subScale: Float,
         subPos: Int,
         stripSdh: Bool,
         assOverride: String,
@@ -892,7 +895,10 @@ final class MPVPlayerViewController: UIViewController {
 
         var size = Double(fontSize)
         checkError(mpv_set_property(mpv, "sub-font-size", MPV_FORMAT_DOUBLE, &size))
+scale = Double(subScale)
+        checkError(mpv_set_property(mpv, "sub-scale", MPV_FORMAT_DOUBLE, &scale))
 
+        var 
         var position = Int64(subPos)
         checkError(mpv_set_property(mpv, "sub-pos", MPV_FORMAT_INT64, &position))
         setStringProperty("sub-filter-sdh", stripSdh ? "yes" : "no")
