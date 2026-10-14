@@ -45,6 +45,7 @@ actual object PlayerSettingsStorage {
     private const val subtitleOutlineWidthKey = "subtitle_outline_width"
     private const val subtitleBoldKey = "subtitle_bold"
     private const val subtitleFontSizeSpKey = "subtitle_font_size_sp"
+    private const val subtitleScalePercentKey = "subtitle_scale_percent"
     private const val subtitleBottomOffsetKey = "subtitle_bottom_offset"
     private const val subtitleStripSdhKey = "subtitle_strip_sdh"
     private const val subtitleUseForcedSubtitlesKey = "subtitle_use_forced_subtitles"
@@ -133,6 +134,7 @@ actual object PlayerSettingsStorage {
         subtitleOutlineWidthKey,
         subtitleBoldKey,
         subtitleFontSizeSpKey,
+        subtitleScalePercentKey,
         subtitleBottomOffsetKey,
         subtitleStripSdhKey,
         subtitleUseForcedSubtitlesKey,
@@ -570,7 +572,24 @@ actual object PlayerSettingsStorage {
             ?.putInt(ProfileScopedKey.of(subtitleFontSizeSpKey), fontSizeSp)
             ?.apply()
     }
+ScalePercent(): Int? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(subtitleScalePercentKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getInt(key, SubtitleStyleState.DEFAULT.scalePercent)
+            } else {
+                null
+            }
+        }
 
+    actual fun saveSubtitleScalePercent(scalePercent: Int) {
+        preferences
+            ?.edit()
+            ?.putInt(ProfileScopedKey.of(subtitleScalePercentKey), scalePercent)
+            ?.apply()
+    }
+
+    actual fun loadSubtitle
     actual fun loadSubtitleBottomOffset(): Int? =
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(subtitleBottomOffsetKey)
@@ -1339,6 +1358,7 @@ actual object PlayerSettingsStorage {
         loadShowParentalGuide()?.let { put(showParentalGuideKey, encodeSyncBoolean(it)) }
         loadResizeMode()?.let { put(resizeModeKey, encodeSyncString(it)) }
         loadHoldToSpeedEnabled()?.let { put(holdToSpeedEnabledKey, encodeSyncBoolean(it)) }
+        loadSubtitleScalePercent()?.let { put(subtitleScalePercentKey, encodeSyncInt(it)) }
         loadHoldToSpeedValue()?.let { put(holdToSpeedValueKey, encodeSyncFloat(it)) }
         loadTouchGesturesEnabled()?.let { put(touchGesturesEnabledKey, encodeSyncBoolean(it)) }
         loadExternalPlayerEnabled()?.let { put(externalPlayerEnabledKey, encodeSyncBoolean(it)) }
@@ -1438,6 +1458,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(subtitleOutlineEnabledKey)?.let(::saveSubtitleOutlineEnabled)
         payload.decodeSyncInt(subtitleOutlineWidthKey)?.let(::saveSubtitleOutlineWidth)
         payload.decodeSyncBoolean(subtitleBoldKey)?.let(::saveSubtitleBold)
+        payload.decodeSyncInt(subtitleScalePercentKey)?.let(::saveSubtitleScalePercent)
         payload.decodeSyncInt(subtitleFontSizeSpKey)?.let(::saveSubtitleFontSizeSp)
         payload.decodeSyncInt(subtitleBottomOffsetKey)?.let(::saveSubtitleBottomOffset)
         payload.decodeSyncBoolean(subtitleStripSdhKey)?.let(::saveSubtitleStripSdh)

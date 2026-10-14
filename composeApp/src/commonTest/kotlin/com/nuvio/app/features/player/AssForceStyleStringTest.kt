@@ -7,11 +7,13 @@ import kotlin.test.assertTrue
 
 class AssForceStyleStringTest {
     @Test
-    fun preserveModeReturnsEmptyStringRegardlessOfFontSize() {
-        val style = SubtitleStyleState(subAssOverride = AssOverrideMode.Preserve)
-        assertEquals("", buildAssForceStyleString(style, 42))
-        assertEquals("", buildAssForceStyleString(style, 0))
-        assertEquals("", buildAssForceStyleString(style, 999))
+    fun preserveAndScaleOnlyModesReturnEmptyStringRegardlessOfFontSize() {
+        listOf(AssOverrideMode.Preserve, AssOverrideMode.ScaleOnly).forEach { mode ->
+            val style = SubtitleStyleState(subAssOverride = mode)
+            assertEquals("", buildAssForceStyleString(style, 42), mode.name)
+            assertEquals("", buildAssForceStyleString(style, 0), mode.name)
+            assertEquals("", buildAssForceStyleString(style, 999), mode.name)
+        }
     }
 
     @Test
@@ -67,7 +69,7 @@ class AssForceStyleStringTest {
         val style = SubtitleStyleState(
             backgroundColor = Color(0x00000000),
             outlineColor = Color(0xFFFF0000),
-            subAssOverride = AssOverrideMode.ScaleOnly,
+            subAssOverride = AssOverrideMode.OverrideColorsAndOutlines,
         )
         val result = buildAssForceStyleString(style, 20)
         assertTrue(result.contains("BorderStyle=1"), result)

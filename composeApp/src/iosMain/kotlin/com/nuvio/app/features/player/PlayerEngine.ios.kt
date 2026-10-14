@@ -278,6 +278,7 @@ actual fun PlatformPlayerSurface(
                     outlineSize = if (style.outlineEnabled) style.outlineWidth.toFloat() else 0f,
                     bold = style.bold,
                     fontSize = fontSize,
+                    subScale = style.scalePercent / 100f,
                     subPos = style.toMpvSubtitlePosition(),
                     stripSdh = style.stripSdh,
                     assOverride = style.subAssOverride.mpvValue,

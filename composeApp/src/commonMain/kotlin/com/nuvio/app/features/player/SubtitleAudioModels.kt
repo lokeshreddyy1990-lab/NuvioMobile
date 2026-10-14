@@ -42,6 +42,9 @@ const val SUBTITLE_AUTO_SYNC_REACTION_COMPENSATION_MS = 300L
 internal val subtitleFontSizeRangeSp: IntRange
     get() = if (isIos) 6..40 else 12..40
 
+/** Subtitle scale multiplier in percent; 100 means the unscaled size. */
+internal val subtitleScalePercentRange: IntRange = 50..250
+
 /**
  * Mirrors mpv's `sub-ass-override` values. Persisted inside [SubtitleStyleState] so it
  * propagates through the existing `applySubtitleStyle(style)` plumbing on every engine.
@@ -68,6 +71,7 @@ data class SubtitleStyleState(
     val outlineWidth: Int = 2,
     val bold: Boolean = false,
     val fontSizeSp: Int = 18,
+    val scalePercent: Int = 100,
     val bottomOffset: Int = 20,
     val stripSdh: Boolean = false,
     val useForcedSubtitles: Boolean = false,

@@ -170,6 +170,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
         outlineSize: Float,
         bold: Bool,
         fontSize: Float,
+        subScale: Float,
         subPos: Int32,
         stripSdh: Bool,
         assOverride: String,
@@ -182,6 +183,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
             outlineSize: outlineSize,
             bold: bold,
             fontSize: fontSize,
+            subScale: subScale,
             subPos: Int(subPos),
             stripSdh: stripSdh,
             assOverride: assOverride,
@@ -866,6 +868,7 @@ final class MPVPlayerViewController: UIViewController {
         outlineSize: Float,
         bold: Bool,
         fontSize: Float,
+        subScale: Float,
         subPos: Int,
         stripSdh: Bool,
         assOverride: String,
@@ -882,16 +885,24 @@ final class MPVPlayerViewController: UIViewController {
         setStringProperty("sub-ass-force-style", forceStyle)
 
         checkError(mpv_set_property_string(mpv, "sub-color", textColor))
-        checkError(mpv_set_property_string(mpv, "sub-back-color", backgroundColor))
-        checkError(mpv_set_property_string(mpv, "sub-outline-color", outlineColor))
-        checkError(mpv_set_property_string(mpv, "sub-border-style", backgroundColor.hasPrefix("#00") ? "outline-and-shadow" : "opaque-box"))
+        // Opaque background draws one box per line: fill goes through the outline colour and
+        // back-colour stays transparent so boxes don't stack (Telegram iOS parity).
+        let isBoxed = !backgroundColor.hasPrefix("#00")
+        checkError(mpv_set_property_string(mpv, "sub-back-color", isBoxed ? "#00000000" : backgroundColor))
+        checkError(mpv_set_property_string(mpv, "sub-outline-color", isBoxed ? backgroundColor : outlineColor))
+        checkError(mpv_set_property_string(mpv, "sub-border-style", isBoxed ? "opaque-box" : "outline-and-shadow"))
+        setStringProperty("sub-line-spacing", isBoxed ? "9" : "0")
+        setStringProperty("sub-shadow-offset", isBoxed ? "1.3" : "0")
         setStringProperty("sub-bold", bold ? "yes" : "no")
 
-        var outline = Double(outlineSize)
+        var outline = isBoxed ? 3.0 : Double(outlineSize)
         checkError(mpv_set_property(mpv, "sub-outline-size", MPV_FORMAT_DOUBLE, &outline))
 
         var size = Double(fontSize)
         checkError(mpv_set_property(mpv, "sub-font-size", MPV_FORMAT_DOUBLE, &size))
+
+        var scale = Double(subScale)
+        checkError(mpv_set_property(mpv, "sub-scale", MPV_FORMAT_DOUBLE, &scale))
 
         var position = Int64(subPos)
         checkError(mpv_set_property(mpv, "sub-pos", MPV_FORMAT_INT64, &position))

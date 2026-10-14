@@ -72,6 +72,7 @@ interface NuvioPlayerBridge {
         outlineSize: Float,
         bold: Boolean,
         fontSize: Float,
+        subScale: Float,
         subPos: Int,
         stripSdh: Boolean,
         assOverride: String,

@@ -47,6 +47,7 @@ import nuvio.composeapp.generated.resources.compose_player_bottom_offset
 import nuvio.composeapp.generated.resources.compose_player_capture_line
 import nuvio.composeapp.generated.resources.compose_player_color
 import nuvio.composeapp.generated.resources.compose_player_font_size
+import nuvio.composeapp.generated.resources.compose_player_background_opacity
 import nuvio.composeapp.generated.resources.compose_player_font_size_value
 import nuvio.composeapp.generated.resources.compose_player_loading_lines
 import nuvio.composeapp.generated.resources.compose_player_no_subtitle_lines_found
@@ -58,6 +59,8 @@ import nuvio.composeapp.generated.resources.compose_player_reset_defaults
 import nuvio.composeapp.generated.resources.compose_player_select_addon_subtitle_first
 import nuvio.composeapp.generated.resources.compose_player_style
 import nuvio.composeapp.generated.resources.compose_player_subtitle_delay
+import nuvio.composeapp.generated.resources.compose_player_subtitle_scale
+import nuvio.composeapp.generated.resources.compose_player_subtitle_scale_value
 import nuvio.composeapp.generated.resources.compose_player_text_opacity
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
@@ -124,6 +127,18 @@ fun SubtitleStylePanel(
             )
         }
 
+        SubtitleStyleSection(title = stringResource(Res.string.compose_player_subtitle_scale)) {
+            SubtitleStyleStepper(
+                value = stringResource(Res.string.compose_player_subtitle_scale_value, style.scalePercent),
+                onDecrease = {
+                    onStyleChanged(style.copy(scalePercent = (style.scalePercent - 10).coerceAtLeast(subtitleScalePercentRange.first)))
+                },
+                onIncrease = {
+                    onStyleChanged(style.copy(scalePercent = (style.scalePercent + 10).coerceAtMost(subtitleScalePercentRange.last)))
+                },
+            )
+        }
+
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_bold)) {
             SubtitleToggleChip(
                 enabled = style.bold,
@@ -152,6 +167,21 @@ fun SubtitleStylePanel(
                 onIncrease = {
                     val alpha = (opacity + 10).coerceAtMost(100) / 100f
                     onStyleChanged(style.copy(textColor = style.textColor.copy(alpha = alpha)))
+                },
+            )
+        }
+
+        SubtitleStyleSection(title = stringResource(Res.string.compose_player_background_opacity)) {
+            val opacity = (style.backgroundColor.alpha * 100f).roundToInt().coerceIn(0, 100)
+            SubtitleStyleStepper(
+                value = "$opacity%",
+                onDecrease = {
+                    val alpha = (opacity - 10).coerceAtLeast(0) / 100f
+                    onStyleChanged(style.copy(backgroundColor = style.backgroundColor.copy(alpha = alpha)))
+                },
+                onIncrease = {
+                    val alpha = (opacity + 10).coerceAtMost(100) / 100f
+                    onStyleChanged(style.copy(backgroundColor = style.backgroundColor.copy(alpha = alpha)))
                 },
             )
         }

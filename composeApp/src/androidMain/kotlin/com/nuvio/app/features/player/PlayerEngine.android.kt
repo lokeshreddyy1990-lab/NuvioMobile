@@ -393,6 +393,7 @@ private fun ExoPlayerSurface(
             videoBoundsFractionProvider = {
                 playerViewRef?.videoBoundsFraction(latestVideoAspectRatio.value)
             },
+            subtitleScaleProvider = { currentSubtitleStyle.scalePercent / 100f },
         )
             .setExtensionRendererMode(effectiveDecoderPriority)
             .setEnableDecoderFallback(true)
@@ -1709,15 +1710,28 @@ private class NuvioLibmpvView(
                     mpv.setPropertyString("sub-use-margins", "yes")
                     // Empty string clears any previously forced style (Preserve mode).
                     mpv.setPropertyString("sub-ass-force-style", buildAssForceStyleString(style, fontSize))
+                    // Opaque background draws one box per line: fill goes through the outline colour
+                    // and back-colour stays transparent so boxes don't stack (Telegram iOS parity).
+                    val boxColor = if (style.isBackgroundBoxed()) style.backgroundColor else style.outlineColor
                     mpv.setPropertyString("sub-color", style.textColor.toMpvColor())
-                    mpv.setPropertyString("sub-back-color", style.backgroundColor.toMpvColor())
-                    mpv.setPropertyString("sub-outline-color", style.outlineColor.toMpvColor())
-                    mpv.setPropertyString("sub-border-color", style.outlineColor.toMpvColor())
+                    mpv.setPropertyString(
+                        "sub-back-color",
+                        if (style.isBackgroundBoxed()) "#00000000" else style.backgroundColor.toMpvColor(),
+                    )
+                    mpv.setPropertyString("sub-outline-color", boxColor.toMpvColor())
+                    mpv.setPropertyString("sub-border-color", boxColor.toMpvColor())
                     mpv.setPropertyString("sub-border-style", style.toMpvSubtitleBorderStyle())
+                    val boxed = style.isBackgroundBoxed()
+                    mpv.setPropertyString("sub-line-spacing", if (boxed) "9" else "0")
+                    mpv.setPropertyString("sub-shadow-offset", if (boxed) "1.3" else "0")
                     mpv.setPropertyString("sub-bold", if (style.bold) "yes" else "no")
                     mpv.setPropertyInt("sub-font-size", fontSize)
-                    mpv.setPropertyInt("sub-outline-size", style.toMpvSubtitleOutlineSize())
-                    mpv.setPropertyInt("sub-border-size", style.toMpvSubtitleOutlineSize())
+                    // Separate multiplier (PlayTorrio parity): scales text and ASS subs without
+                    // touching the base font size used by the force-style payload.
+                    mpv.setPropertyString("sub-scale", (style.scalePercent / 100.0).toString())
+                    val outlineSize = if (style.isBackgroundBoxed()) 3 else style.toMpvSubtitleOutlineSize()
+                    mpv.setPropertyInt("sub-outline-size", outlineSize)
+                    mpv.setPropertyInt("sub-border-size", outlineSize)
                     mpv.setPropertyInt("sub-pos", (100 - style.bottomOffset / 10).coerceIn(0, 100))
                     mpv.setPropertyBoolean("sub-filter-sdh", style.stripSdh)
                     mpv.setPropertyBoolean("sub-filter-sdh-harder", style.stripSdh)
@@ -1852,14 +1866,10 @@ private fun SubtitleStyleState.toMpvSubtitleFontSize(): Int =
 private fun SubtitleStyleState.toMpvSubtitleOutlineSize(): Int =
     if (!outlineEnabled) 0 else (outlineWidth * MPV_SUBTITLE_OUTLINE_SIZE_SCALE).toInt().coerceAtLeast(1)
 
+private fun SubtitleStyleState.isBackgroundBoxed(): Boolean = backgroundColor.alphaByte() > 0
+
 private fun SubtitleStyleState.toMpvSubtitleBorderStyle(): String =
-    if (outlineEnabled) {
-        "outline-and-shadow"
-    } else if (backgroundColor.alphaByte() > 0) {
-        "opaque-box"
-    } else {
-        "outline-and-shadow"
-    }
+    if (isBackgroundBoxed()) "opaque-box" else "outline-and-shadow"
 
 private const val MPV_SUBTITLE_FONT_SIZE_SCALE = 55.0 / 18.0
 private const val MPV_SUBTITLE_FONT_SIZE_MIN = 36
@@ -2089,7 +2099,10 @@ private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipScale: F
                     if (style.bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT,
                 )
             )
-            setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSizeSp.toFloat() * pipScale)
+            setFixedTextSize(
+                TypedValue.COMPLEX_UNIT_SP,
+                style.fontSizeSp.toFloat() * (style.scalePercent / 100f) * pipScale,
+            )
         }
     }
 }
@@ -2291,6 +2304,7 @@ private class SubtitleOffsetRenderersFactory(
     private val subtitleDelayUsProvider: () -> Long,
     private val shouldNormalizeCuePositionProvider: () -> Boolean,
     private val shouldStripSdhProvider: () -> Boolean,
+    private val subtitleScaleProvider: () -> Float,
     private val videoBoundsFractionProvider: () -> RectF?,
 ) : DefaultRenderersFactory(context) {
     override fun buildTextRenderers(
@@ -2304,6 +2318,7 @@ private class SubtitleOffsetRenderersFactory(
             delegate = output,
             shouldNormalizeCuePositionProvider = shouldNormalizeCuePositionProvider,
             shouldStripSdhProvider = shouldStripSdhProvider,
+            subtitleScaleProvider = subtitleScaleProvider,
             videoBoundsFractionProvider = videoBoundsFractionProvider,
         )
         val startIndex = out.size
@@ -2320,6 +2335,7 @@ private class SubtitleOffsetRenderersFactory(
 private class CueNormalizingTextOutput(
     private val delegate: TextOutput,
     private val shouldNormalizeCuePositionProvider: () -> Boolean,
+    private val subtitleScaleProvider: () -> Float,
     private val shouldStripSdhProvider: () -> Boolean,
     private val videoBoundsFractionProvider: () -> RectF?,
 ) : TextOutput {
@@ -2352,6 +2368,12 @@ private class CueNormalizingTextOutput(
                     && bounds.width() == 1f && bounds.height() == 1f
                 if (!isIdentity) {
                     processed = remapBitmapCueToVideoBounds(processed, bounds)
+            val scale = subtitleScaleProvider()
+            if (scale != 1f && processed.bitmapHeight != Cue.DIMEN_UNSET) {
+                processed = processed.buildUpon()
+                    .setBitmapHeight(processed.bitmapHeight * scale)
+                    .build()
+            }
                 }
             }
         }
