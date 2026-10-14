@@ -302,8 +302,7 @@ object TelegramRepository {
             }
         }
         known.forEach(::consider)
-        val startId = maxOf(1L, seedId - SPLIT_SCAN_WINDOW)
-        val ids = (startId..(seedId + SPLIT_SCAN_WINDOW)).toList()
+        val ids = telegramSplitScanIds(seedId)
         val response = request(
             buildJsonObject {
                 put("@type", "getMessages")
@@ -639,6 +638,13 @@ object TelegramRepository {
 const val TELEGRAM_ADDON_ID = "telegram"
 internal const val TELEGRAM_ADDON_NAME = "Telegram"
 private const val SPLIT_SCAN_WINDOW = 20L
+// TDLib message IDs are server IDs shifted left by 20 bits, so adjacent messages differ by 2^20.
+private const val TELEGRAM_MESSAGE_ID_STEP = 1L shl 20
+
+internal fun telegramSplitScanIds(seedId: Long): List<Long> =
+    (-SPLIT_SCAN_WINDOW..SPLIT_SCAN_WINDOW)
+        .map { step -> seedId + step * TELEGRAM_MESSAGE_ID_STEP }
+        .filter { it > 0L }
 private const val TELEGRAM_CONNECTION_TIMEOUT_MS = 4_000L
 
 /**
