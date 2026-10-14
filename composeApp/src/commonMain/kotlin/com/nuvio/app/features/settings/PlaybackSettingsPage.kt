@@ -672,6 +672,21 @@ private fun PlaybackSettingsSection(
                     onClick = { showSubtitleBackgroundColorDialog = true },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
+                SettingsSliderRow(
+                    title = stringResource(Res.string.settings_playback_subtitle_background_opacity),
+                    value = (subtitleStyle.backgroundColor.alpha * 100f).roundToInt(),
+                    valueText = { opacity -> "$opacity%" },
+                    valueRange = 0..100,
+                    step = 10,
+                    isTablet = isTablet,
+                    enabled = subtitleRenderingEnabled,
+                    onValueChange = { value ->
+                        PlayerSettingsRepository.setSubtitleStyle(
+                            subtitleStyle.copy(backgroundColor = subtitleStyle.backgroundColor.copy(alpha = value / 100f)),
+                        )
+                    },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_subtitle_outline),
                     description = stringResource(Res.string.settings_playback_subtitle_outline_description),

@@ -478,6 +478,7 @@
     <string name="compose_player_subtitle_delay">Subtitle Delay</string>
     <string name="compose_player_subtitles">Subtitles</string>
     <string name="compose_player_text_opacity">Text Opacity</string>
+    <string name="compose_player_background_opacity">Background Opacity</string>
     <string name="compose_player_brightness_level">Brightness %1$s</string>
     <string name="compose_player_volume_level">Volume %1$s</string>
     <string name="compose_player_muted">Muted</string>
@@ -1189,6 +1190,7 @@
     <string name="settings_playback_parental_guide">Content Warnings</string>
     <string name="settings_playback_parental_guide_description">Show parental guidance overlay when playback starts.</string>
     <string name="settings_playback_subtitle_background_color">Background Color</string>
+    <string name="settings_playback_subtitle_background_opacity">Background Opacity</string>
     <string name="settings_playback_subtitle_bold">Bold</string>
     <string name="settings_playback_subtitle_bold_description">Use a heavier subtitle font weight.</string>
     <string name="settings_playback_subtitle_color_transparent">Transparent</string>
