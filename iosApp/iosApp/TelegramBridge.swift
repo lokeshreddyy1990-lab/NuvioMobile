@@ -24,7 +24,7 @@ private struct VirtualAsset {
     let innerSize: Int64
 }
 
-private final class TelegramBridgeManager {
+final class TelegramBridgeManager {
     static let shared = TelegramBridgeManager()
 
     private let receiveQueue = DispatchQueue(label: "com.nuvio.telegram.receive", qos: .userInitiated)
