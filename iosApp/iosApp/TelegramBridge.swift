@@ -35,6 +35,8 @@ private final class TelegramBridgeManager {
     private var waiters: [String: (String) -> Void] = [:]
     private var listener: NWListener?
     private var listenerPort: UInt16?
+    // Playback URLs already handed to the player embed this port, so rebinds reuse it.
+    private var preferredPort: NWEndpoint.Port?
     private var registeredFiles: [Int32: RegisteredTelegramFile] = [:]
     private var virtualAssets: [Int32: VirtualAsset] = [:]
     // A virtual asset is described entirely by its parts and byte range, so the same
@@ -259,20 +261,67 @@ private final class TelegramBridgeManager {
         }
     }
 
+    /// Re-checks the loopback server after iOS may have suspended it, rebinding on the same port if dead.
+    func restartServerIfStale() {
+        lock.lock()
+        let port = listenerPort
+        lock.unlock()
+        guard let port, let endpointPort = NWEndpoint.Port(rawValue: port) else { return }
+
+        let probe = NWConnection(host: "127.0.0.1", port: endpointPort, using: .tcp)
+        let probed = DispatchSemaphore(value: 0)
+        var reachable = false
+        probe.stateUpdateHandler = { state in
+            switch state {
+            case .ready:
+                reachable = true
+                probed.signal()
+            case .failed, .cancelled:
+                probed.signal()
+            default:
+                break
+            }
+        }
+        probe.start(queue: serverQueue)
+        _ = probed.wait(timeout: .now() + 1)
+        probe.cancel()
+        guard !reachable else { return }
+
+        lock.lock()
+        listener?.cancel()
+        listener = nil
+        listenerPort = nil
+        lock.unlock()
+        _ = ensureServer()
+    }
+
     private func ensureServer() -> UInt16? {
         lock.lock()
         if let listenerPort {
             lock.unlock()
             return listenerPort
         }
+        let port = preferredPort
         lock.unlock()
 
+        if let started = startServer(on: port) {
+            return started
+        }
+        guard port != nil else { return nil }
+        // Preferred port could not be rebound; fall back to any free port.
+        lock.lock()
+        preferredPort = nil
+        lock.unlock()
+        return startServer(on: nil)
+    }
+
+    private func startServer(on port: NWEndpoint.Port?) -> UInt16? {
         let ready = DispatchSemaphore(value: 0)
         do {
             let parameters = NWParameters.tcp
             parameters.allowLocalEndpointReuse = true
-            parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
-            let newListener = try NWListener(using: parameters, on: .any)
+            parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: port ?? .any)
+            let newListener = try NWListener(using: parameters, on: port ?? .any)
             newListener.newConnectionHandler = { [weak self] connection in
                 self?.handle(connection: connection)
             }
@@ -281,9 +330,17 @@ private final class TelegramBridgeManager {
                 case .ready:
                     self?.lock.lock()
                     self?.listenerPort = newListener.port?.rawValue
+                    self?.preferredPort = newListener.port
                     self?.lock.unlock()
                     ready.signal()
                 case .failed, .cancelled:
+                    // Drop the dead listener so the next request rebinds instead of reusing its port.
+                    self?.lock.lock()
+                    if self?.listener === newListener {
+                        self?.listener = nil
+                        self?.listenerPort = nil
+                    }
+                    self?.lock.unlock()
                     ready.signal()
                 default:
                     break

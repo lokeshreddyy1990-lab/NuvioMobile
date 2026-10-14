@@ -272,6 +272,7 @@ final class MPVPlayerViewController: UIViewController {
     private var externallyManagedViewSize: CGSize?
     private var pendingSurfaceLayoutWorkItems: [DispatchWorkItem] = []
     private var pendingLoadRequest: PendingLoadRequest?
+    private var lastLoadedUrl: String?
     private var pendingLoadRetryWorkItem: DispatchWorkItem?
     private var mpv: OpaquePointer?
     private var cachedNowPlayingMetadata: CachedNowPlayingMetadata?
@@ -572,6 +573,15 @@ final class MPVPlayerViewController: UIViewController {
         let wasInPictureInPicture = pictureInPictureController?.enteredForeground() == true
         if wasInPictureInPicture { return }
         setStringProperty("vid", "auto")
+        // Local Telegram stream server may have been suspended; rebind it, then reload at the same position.
+        if let url = lastLoadedUrl, url.contains("127.0.0.1") {
+            DispatchQueue.global(qos: .userInitiated).async {
+                TelegramBridgeManager.shared.restartServerIfStale()
+                DispatchQueue.main.async { [weak self] in
+                    self?.reloadLastUrl()
+                }
+            }
+        }
         playPlayback()
     }
 
@@ -619,6 +629,7 @@ final class MPVPlayerViewController: UIViewController {
         guard mpv != nil else { return }
         layoutMetalLayer()
         clearPlaybackError()
+        lastLoadedUrl = request.urlString
         let sanitizedHeaders = sanitizeRequestHeaders(request.requestHeaders)
         activeRequestHeaders = sanitizedHeaders
         applyRequestHeaders(sanitizedHeaders)
@@ -698,6 +709,17 @@ final class MPVPlayerViewController: UIViewController {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.command("seek", args: [String(format: "%.3f", pos), "absolute"])
             }
+        }
+    }
+
+    private func reloadLastUrl() {
+        guard mpv != nil, let url = lastLoadedUrl else { return }
+        let pos = getDouble("time-pos")
+        clearPlaybackError()
+        applyRequestHeaders(activeRequestHeaders)
+        command("loadfile", args: [url, "replace"])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.command("seek", args: [String(format: "%.3f", pos), "absolute"])
         }
     }
 

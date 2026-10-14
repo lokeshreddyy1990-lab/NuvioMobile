@@ -12,6 +12,15 @@ import kotlin.test.assertTrue
 
 class TelegramSplitFilesTest {
     @Test
+    fun splitScanStepsByTdlibMessageIdSpacing() {
+        val ids = telegramSplitScanIds(seedId = 50L shl 20)
+        assertTrue((50L shl 20) in ids)
+        assertTrue((51L shl 20) in ids)
+        assertTrue((52L shl 20) in ids)
+        assertFalse((50L shl 20) + 1 in ids)
+    }
+
+    @Test
     fun zipVolumesShareAGroupKey() {
         val first = parseTelegramSplitInfo("Reacher.S01.zip.001")
         val second = parseTelegramSplitInfo("Reacher.S01.zip.002")
