@@ -31,9 +31,9 @@ internal fun Color.toAssColorString(): String {
 }
 
 /**
- * Build the `sub-ass-force-style` payload for [style], or an empty string when
- * the mode is [AssOverrideMode.Preserve] (mpv `no`), which means "don't force
- * anything" and also clears any previously set value.
+ * Build the `sub-ass-force-style` payload for [style], or an empty string for
+ * [AssOverrideMode.Preserve] and [AssOverrideMode.ScaleOnly], which clears any
+ * previously set value.
  *
  * [fontSize] is supplied by the calling engine so the forced `Fontsize` matches
  * that engine's own `sub-font-size` scaling (Android libmpv vs iOS MPVKit use
@@ -43,7 +43,9 @@ internal fun buildAssForceStyleString(
     style: SubtitleStyleState,
     fontSize: Int,
 ): String {
-    if (style.subAssOverride == AssOverrideMode.Preserve) return ""
+    if (style.subAssOverride == AssOverrideMode.Preserve ||
+        style.subAssOverride == AssOverrideMode.ScaleOnly
+    ) return ""
 
     // A background with any opacity means an opaque box (BorderStyle 3) rather
     // than a plain outline (BorderStyle 1).
