@@ -510,6 +510,7 @@ actual object PlayerSettingsStorage {
 
     actual fun saveSubtitleFontSizeSp(fontSizeSp: Int) {
         NSUserDefaults.standardUserDefaults.setInteger(fontSizeSp.toLong(), forKey = ProfileScopedKey.of(subtitleFontSizeSpKey))
+    }
 
     actual fun loadSubtitleScalePercent(): Int? {
         val defaults = NSUserDefaults.standardUserDefaults
@@ -523,7 +524,6 @@ actual object PlayerSettingsStorage {
 
     actual fun saveSubtitleScalePercent(scalePercent: Int) {
         NSUserDefaults.standardUserDefaults.setInteger(scalePercent.toLong(), forKey = ProfileScopedKey.of(subtitleScalePercentKey))
-    }
     }
 
     actual fun loadSubtitleBottomOffset(): Int? {
