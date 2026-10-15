@@ -304,7 +304,10 @@ object PlayerStreamsRepository {
                 streams = emptyList(),
                 isLoading = true,
             )
-        } + serverSources.map { it.loadingGroup() } + listOfNotNull(telegramSearch?.let { telegramLoadingStreamGroup() }), installedAddonOrder, preferredGroupIds)
+        } + serverSources.map { it.loadingGroup() } + listOfNotNull(telegramSearch?.let { telegramLoadingStreamGroup() }),
+            installedAddonOrder,
+            preferredGroupIds,
+        )
         val isInitiallyLoading = initialGroups.any { it.isLoading }
         stateFlow.value = StreamsUiState(
             groups = initialGroups,

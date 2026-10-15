@@ -286,12 +286,13 @@ class TelegramSplitFilesTest {
     @Test
     fun udfAnchorIdentifiesSplitDiscImagesWithoutIso9660Tree() {
         // A UDF-only Blu-ray image has no ISO9660 `CD001` descriptor, so the ISO9660 scanner
-        // cannot see it, but it does carry the UDF Volume Recognition Sequence (`NSR0`) at
-        // sector 256. That anchor is exactly what gates the raw-image fallback for
-        // `*.iso.001` / `*.zip.iso.001` uploads, so the two results must disagree.
-        val anchorSector = 256 * 2048
+        // cannot see it, but it does carry the UDF Volume Recognition Sequence (`NSR02`) in
+        // the volume recognition area at sector 16. That anchor is exactly what gates the
+        // raw-image fallback for `*.iso.001` / `*.zip.iso.001` uploads, so the two results
+        // must disagree.
+        val anchorSector = 16 * 2048
         val udf = ByteArray(anchorSector + 4096)
-        "NSR0".encodeToByteArray().copyInto(udf, anchorSector + 1)
+        "NSR02".encodeToByteArray().copyInto(udf, anchorSector + 1)
         val readUdf: (Long, Int) -> ByteArray = { offset, length ->
             udf.copyOfRange(offset.toInt(), minOf(offset.toInt() + length, udf.size))
         }

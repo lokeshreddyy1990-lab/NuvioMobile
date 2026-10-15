@@ -1,5 +1,6 @@
 package com.nuvio.app.features.telegram
 
+import co.touchlab.kermit.Logger
 import com.nuvio.app.core.build.AppVersionConfig
 import com.nuvio.app.features.streams.AddonStreamGroup
 import com.nuvio.app.features.streams.StreamBehaviorHints
@@ -58,6 +59,7 @@ data class TelegramUiState(
 }
 
 object TelegramRepository {
+    private val log = Logger.withTag("TelegramRepo")
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val _uiState = MutableStateFlow(TelegramUiState())
@@ -207,7 +209,8 @@ object TelegramRepository {
             if (!contiguousTelegramParts(parts.keys)) continue
             val ordered = parts.entries.sortedBy { it.key }.map { it.value }
             val split = parseTelegramSplitInfo(ordered.first().fileName) ?: continue
-            val stream = if (!split.isZip && isTelegramIsoName(split.displayName)) {
+            val isDiscImageSplit = !split.isZip && isTelegramIsoName(split.displayName)
+            val stream = if (isDiscImageSplit) {
                 isoStreamItem(
                     hits = ordered,
                     displayName = split.displayName,
@@ -228,7 +231,13 @@ object TelegramRepository {
                     episode = episode,
                     chatTitles = chatTitles,
                 )
-            } ?: continue
+            }
+            if (stream == null) {
+                if (isDiscImageSplit) {
+                    log.w(null) { "Telegram disc image dropped: ${split.displayName} (${ordered.size} parts)" }
+                }
+                continue
+            }
             ordered.forEach { hit -> used += hit.chatId to hit.messageId }
             streams += stream
         }
@@ -257,7 +266,11 @@ object TelegramRepository {
                 val isDiscImage = hasUdfAnchor(hit.fileSize) { offset, length ->
                     TelegramPlatformClient.readFile(hit.fileId, offset, length)
                 }
-                if (isDiscImage) singleStreamItem(hit, chatTitles)?.let { streams.add(it) }
+                if (isDiscImage) {
+                    singleStreamItem(hit, chatTitles)?.let { streams.add(it) }
+                } else {
+                    log.w(null) { "Telegram ISO dropped: ${hit.fileName} (no ISO9660 title, no UDF VRS)" }
+                }
                 continue
             }
             streams += singleStreamItem(hit, chatTitles) ?: continue
@@ -637,7 +650,8 @@ object TelegramRepository {
 
 const val TELEGRAM_ADDON_ID = "telegram"
 internal const val TELEGRAM_ADDON_NAME = "Telegram"
-private const val SPLIT_SCAN_WINDOW = 20L
+// Wide enough that a disc image split into many volumes is still gathered contiguously.
+private const val SPLIT_SCAN_WINDOW = 64L
 // TDLib message IDs are server IDs shifted left by 20 bits, so adjacent messages differ by 2^20.
 private const val TELEGRAM_MESSAGE_ID_STEP = 1L shl 20
 
