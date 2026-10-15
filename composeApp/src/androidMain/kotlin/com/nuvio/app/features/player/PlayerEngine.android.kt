@@ -1702,13 +1702,20 @@ private class NuvioLibmpvView(
 
             override fun applySubtitleStyle(style: SubtitleStyleState) {
                 executeMpv {
+                    // "Preserve" is a complete no-op: leave ASS/SSA scripts (and mpv's own
+                    // defaults for plain SRT/VTT) exactly as authored, and undo anything a
+                    // previously selected override mode may have applied.
+                    if (style.subAssOverride == AssOverrideMode.Preserve) {
+                        mpv.resetSubtitleStyleOverrides()
+                        return@executeMpv
+                    }
                     val fontSize = style.toMpvSubtitleFontSize()
                     // Full mpv parity with PlayTorrioV3: honour the user's ASS/SSA script
                     // override mode and, when overriding, inject the forced style payload.
                     mpv.setPropertyString("sub-ass-override", style.subAssOverride.mpvValue)
                     mpv.setPropertyString("sub-ass-force-margins", "yes")
                     mpv.setPropertyString("sub-use-margins", "yes")
-                    // Empty string clears any previously forced style (Preserve mode).
+                    // Force-style payload for the active override mode.
                     mpv.setPropertyString("sub-ass-force-style", buildAssForceStyleString(style, fontSize))
                     // Opaque background draws one box per line: fill goes through the outline colour
                     // and back-colour stays transparent so boxes don't stack (Telegram iOS parity).
@@ -1870,6 +1877,36 @@ private fun SubtitleStyleState.isBackgroundBoxed(): Boolean = backgroundColor.al
 
 private fun SubtitleStyleState.toMpvSubtitleBorderStyle(): String =
     if (isBackgroundBoxed()) "opaque-box" else "outline-and-shadow"
+
+/**
+ * Restore mpv's built-in subtitle style defaults so that selecting
+ * [AssOverrideMode.Preserve] truly behaves like no override at all — it also
+ * clears any styling left behind by a previously active override mode, so the
+ * authored ASS/SSA layout (and mpv's own look for plain SRT/VTT) wins again.
+ */
+private fun MPV.resetSubtitleStyleOverrides() {
+    setPropertyString("sub-ass-override", AssOverrideMode.Preserve.mpvValue)
+    // Drop any forced style / forced margins so the authored script layout wins.
+    setPropertyString("sub-ass-force-style", "")
+    setPropertyString("sub-ass-force-margins", "no")
+    setPropertyString("sub-use-margins", "yes")
+    // mpv defaults for the options the override modes mutate.
+    setPropertyString("sub-color", "#FFFFFFFF")
+    setPropertyString("sub-back-color", "#FF000000")
+    setPropertyString("sub-outline-color", "#FF000000")
+    setPropertyString("sub-border-color", "#FF000000")
+    setPropertyString("sub-border-style", "outline-and-shadow")
+    setPropertyString("sub-line-spacing", "0")
+    setPropertyString("sub-shadow-offset", "0")
+    setPropertyString("sub-bold", "no")
+    setPropertyInt("sub-font-size", 55)
+    setPropertyString("sub-scale", "1.0")
+    setPropertyInt("sub-outline-size", 3)
+    setPropertyInt("sub-border-size", 3)
+    setPropertyInt("sub-pos", 100)
+    setPropertyBoolean("sub-filter-sdh", false)
+    setPropertyBoolean("sub-filter-sdh-harder", false)
+}
 
 private const val MPV_SUBTITLE_FONT_SIZE_SCALE = 55.0 / 18.0
 private const val MPV_SUBTITLE_FONT_SIZE_MIN = 36
