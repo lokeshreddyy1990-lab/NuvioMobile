@@ -2405,13 +2405,15 @@ private class CueNormalizingTextOutput(
                     && bounds.width() == 1f && bounds.height() == 1f
                 if (!isIdentity) {
                     processed = remapBitmapCueToVideoBounds(processed, bounds)
+                }
+            }
+            // Scale every bitmap cue (PGS/DVD), including the common fullscreen
+            // (identity-bounds) case — this must run outside the bounds check above.
             val scale = subtitleScaleProvider()
             if (scale != 1f && processed.bitmapHeight != Cue.DIMEN_UNSET) {
                 processed = processed.buildUpon()
                     .setBitmapHeight(processed.bitmapHeight * scale)
                     .build()
-            }
-                }
             }
         }
         return processed
