@@ -50,19 +50,30 @@ internal fun buildAssForceStyleString(
     // A background with any opacity means an opaque box (BorderStyle 3) rather
     // than a plain outline (BorderStyle 1).
     val isBoxed = style.backgroundColor.alpha.toByteValue() > 0
-    val backColour = if (isBoxed) style.backgroundColor else style.outlineColor
+    // libass paints a BorderStyle 3 box using OutlineColour (BackColour only feeds
+    // the shadow, which is disabled below). That is also why the raw sub-* path puts
+    // the box colour in `sub-outline-color` and keeps `sub-back-color` transparent.
+    // Mirror that here, otherwise the box renders as the opaque outline colour.
+    val outlineColour = if (isBoxed) style.backgroundColor else style.outlineColor
+    val backColour = if (isBoxed) Color.Transparent else style.outlineColor
     val outline = if (style.outlineEnabled) style.outlineWidth else 0
+    // With BorderStyle 3 the Outline field is the box padding, so use the same fixed
+    // value the raw sub-* path applies to sub-outline-size when boxed.
+    val outlineValue = if (isBoxed) BOXED_OUTLINE_PADDING else outline
 
     return buildString {
         append("Fontsize=").append(fontSize)
         append(",PrimaryColour=").append(style.textColor.toAssColorString())
         append(",BackColour=").append(backColour.toAssColorString())
-        append(",OutlineColour=").append(style.outlineColor.toAssColorString())
+        append(",OutlineColour=").append(outlineColour.toAssColorString())
         append(",Bold=").append(if (style.bold) 1 else 0)
         append(",BorderStyle=").append(if (isBoxed) 3 else 1)
-        append(",Outline=").append(outline)
+        append(",Outline=").append(outlineValue)
         append(",Shadow=0")
     }
 }
 
 private fun Float.toByteValue(): Int = (this * 255f).roundToInt().coerceIn(0, 255)
+
+/** Box padding used with `BorderStyle=3`, matching the raw `sub-outline-size` path. */
+private const val BOXED_OUTLINE_PADDING = 3

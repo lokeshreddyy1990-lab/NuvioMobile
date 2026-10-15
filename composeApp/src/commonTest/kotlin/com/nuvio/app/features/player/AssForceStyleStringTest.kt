@@ -60,8 +60,12 @@ class AssForceStyleStringTest {
         )
         val result = buildAssForceStyleString(boxed, 55)
         assertTrue(result.contains("BorderStyle=3"), result)
-        // BackColour follows the (boxed) background, not the outline colour.
-        assertTrue(result.contains("BackColour=&H7F000000"), result)
+        // libass paints a BorderStyle 3 box with OutlineColour, so the (translucent)
+        // background must land there; BackColour stays transparent (Shadow=0).
+        assertTrue(result.contains("OutlineColour=&H7F000000"), result)
+        assertTrue(result.contains("BackColour=&HFF000000"), result)
+        // Box padding matches the raw sub-outline-size value used when boxed.
+        assertTrue(result.contains("Outline=3"), result)
     }
 
     @Test
