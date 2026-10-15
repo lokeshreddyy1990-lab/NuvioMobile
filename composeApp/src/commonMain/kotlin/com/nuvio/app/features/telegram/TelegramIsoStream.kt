@@ -25,8 +25,12 @@ private const val ISO9660_MAX_ENTRIES = 64
  */
 private const val ISO_DIRECTORY_MAX_BYTES = 262_144
 
-/** Sector holding the UDF Anchor Volume Descriptor Pointer. */
-private const val UDF_ANCHOR_SECTOR = 256L
+/**
+ * Sector holding the UDF Volume Recognition Sequence. It lies in the same system-area
+ * sector ISO9660 uses, so `BEA01`/`NSR02` and `CD001` are found at the same offset.
+ */
+private const val UDF_VRS_SECTOR = 16L
+private const val UDF_VRS_SCAN_SECTORS = 8
 
 /**
  * A playable payload found inside a disc image.
@@ -82,8 +86,23 @@ internal fun hasUdfAnchor(
     imageSize: Long,
     read: (offset: Long, length: Int) -> ByteArray?,
 ): Boolean {
-    val anchor = readIsoChunk(UDF_ANCHOR_SECTOR * ISO9660_SECTOR, 64, imageSize, read) ?: return false
-    return anchor.size >= 5 && anchor.decodeToString(1, 5) == "NSR0"
+    val vrs = readIsoChunk(
+        offset = UDF_VRS_SECTOR * ISO9660_SECTOR,
+        length = UDF_VRS_SCAN_SECTORS * ISO9660_SECTOR_BYTES,
+        imageSize = imageSize,
+        read = read,
+    ) ?: return false
+    var sector = 0
+    while ((sector + 1) * ISO9660_SECTOR_BYTES <= vrs.size) {
+        val start = sector * ISO9660_SECTOR_BYTES
+        when (vrs.decodeToString(start + 1, start + 6)) {
+            "NSR02", "NSR03" -> return true
+            // TEA01 terminates the sequence; nothing after it is a UDF descriptor.
+            "TEA01" -> return false
+        }
+        sector++
+    }
+    return false
 }
 
 private fun findIso9660Entry(
