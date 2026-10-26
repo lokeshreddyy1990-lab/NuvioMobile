@@ -613,16 +613,7 @@ final class MPVPlayerViewController: UIViewController {
         guard mpv != nil else { return }
         let wasInPictureInPicture = pictureInPictureController?.enteredForeground() == true
         if wasInPictureInPicture { return }
-        setStringProperty("vid", "auto")
-        // Local Telegram stream server may have been suspended; rebind it, then reload at the same position.
-        if let url = lastLoadedUrl, url.contains("127.0.0.1") {
-            DispatchQueue.global(qos: .userInitiated).async {
-                TelegramBridgeManager.shared.restartServerIfStale()
-                DispatchQueue.main.async { [weak self] in
-                    self?.reloadLastUrl()
-                }
-            }
-        }
+        restoreBackgroundVideo()
         playPlayback()
     }
 
