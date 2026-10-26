@@ -93,6 +93,7 @@ import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesUiState
 import com.nuvio.app.navigation.LocalUseNativeNavigation
+import com.nuvio.app.features.party.PartyRepository
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_settings_page_root
 import kotlinx.coroutines.delay
@@ -105,6 +106,12 @@ import org.jetbrains.compose.resources.stringResource
 private val SettingsSearchRevealThreshold = 28.dp
 private const val SettingsSearchRevealAnimationMillis = 240L
 private const val SettingsSearchRevealHapticDelayMillis = 90L
+
+@Composable
+private fun watchPartyRow(onClick: () -> Unit): (() -> Unit)? {
+    val available by PartyRepository.available.collectAsStateWithLifecycle()
+    return onClick.takeIf { available }
+}
 
 private fun SettingsPage.isEnabledByPolicy(): Boolean =
     when (this) {
@@ -145,6 +152,7 @@ fun SettingsScreen(
     onCheckForUpdatesClick: (() -> Unit)? = null,
     onTestUpdateBannerClick: (() -> Unit)? = null,
     onCollectionsClick: () -> Unit = {},
+    onWatchPartyClick: () -> Unit = {},
 ) {
     BoxWithConstraints(
         modifier = modifier.fillMaxSize(),
@@ -410,6 +418,7 @@ fun SettingsScreen(
                         tunnelingEnabled = playerSettingsUiState.tunnelingEnabled,
                         useLibass = playerSettingsUiState.useLibass,
                         libassRenderType = playerSettingsUiState.libassRenderType,
+                        libassRenderScale = playerSettingsUiState.libassRenderScale,
                         rememberLastProfileEnabled = profileSettingsState.rememberLastProfileEnabled,
                         selectedTheme = selectedTheme,
                         onThemeSelected = ThemeSettingsRepository::setTheme,
@@ -450,6 +459,7 @@ fun SettingsScreen(
                         onCheckForUpdatesClick = onCheckForUpdatesClick,
                         onTestUpdateBannerClick = onTestUpdateBannerClick,
                         onCollectionsClick = onCollectionsClick,
+                        onWatchPartyClick = onWatchPartyClick,
                     )
                 } else {
                     MobileSettingsScreen(
@@ -477,6 +487,7 @@ fun SettingsScreen(
                         tunnelingEnabled = playerSettingsUiState.tunnelingEnabled,
                         useLibass = playerSettingsUiState.useLibass,
                         libassRenderType = playerSettingsUiState.libassRenderType,
+                        libassRenderScale = playerSettingsUiState.libassRenderScale,
                         rememberLastProfileEnabled = profileSettingsState.rememberLastProfileEnabled,
                         selectedTheme = selectedTheme,
                         onThemeSelected = ThemeSettingsRepository::setTheme,
@@ -523,6 +534,7 @@ fun SettingsScreen(
                         onCheckForUpdatesClick = onCheckForUpdatesClick,
                         onTestUpdateBannerClick = onTestUpdateBannerClick,
                         onCollectionsClick = onCollectionsClick,
+                        onWatchPartyClick = onWatchPartyClick,
                     )
                 }
             }
@@ -556,6 +568,7 @@ private fun MobileSettingsScreen(
     tunnelingEnabled: Boolean,
     useLibass: Boolean,
     libassRenderType: String,
+    libassRenderScale: String,
     rememberLastProfileEnabled: Boolean,
     selectedTheme: AppTheme,
     onThemeSelected: (AppTheme) -> Unit,
@@ -602,6 +615,7 @@ private fun MobileSettingsScreen(
     onCheckForUpdatesClick: (() -> Unit)? = null,
     onTestUpdateBannerClick: (() -> Unit)? = null,
     onCollectionsClick: () -> Unit = {},
+    onWatchPartyClick: () -> Unit = {},
 ) {
     val saveableStateHolder = rememberSaveableStateHolder()
     saveableStateHolder.SaveableStateProvider(page.name) {
@@ -667,6 +681,7 @@ private fun MobileSettingsScreen(
             }
         }
 
+        val watchPartyRowClick = watchPartyRow(onWatchPartyClick)
         NuvioScreen(
             modifier = Modifier.nestedScroll(rootSearchRevealConnection),
             listState = listState,
@@ -721,6 +736,7 @@ private fun MobileSettingsScreen(
                             onTestUpdateBannerClick = onTestUpdateBannerClick,
                             onAccountClick = onAccountClick,
                             onSwitchProfileClick = onSwitchProfile,
+                            onWatchPartyClick = watchPartyRowClick,
                             showSupportersContributorsPage = AppFeaturePolicy.supportersContributorsPageEnabled,
                         )
                     }
@@ -757,6 +773,7 @@ private fun MobileSettingsScreen(
                     tunnelingEnabled = tunnelingEnabled,
                     useLibass = useLibass,
                     libassRenderType = libassRenderType,
+                    libassRenderScale = libassRenderScale,
                 )
                 SettingsPage.Streams -> streamsSettingsContent(
                     isTablet = false,
@@ -942,6 +959,7 @@ private fun TabletSettingsScreen(
     tunnelingEnabled: Boolean,
     useLibass: Boolean,
     libassRenderType: String,
+    libassRenderScale: String,
     rememberLastProfileEnabled: Boolean,
     selectedTheme: AppTheme,
     onThemeSelected: (AppTheme) -> Unit,
@@ -982,6 +1000,7 @@ private fun TabletSettingsScreen(
     onCheckForUpdatesClick: (() -> Unit)? = null,
     onTestUpdateBannerClick: (() -> Unit)? = null,
     onCollectionsClick: () -> Unit = {},
+    onWatchPartyClick: () -> Unit = {},
 ) {
     var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.General.name) }
     val activeCategory = SettingsCategory.valueOf(selectedCategory)
@@ -1090,6 +1109,7 @@ private fun TabletSettingsScreen(
                     listState.animateScrollToItem(0)
                 }
             }
+            val watchPartyRowClick = watchPartyRow(onWatchPartyClick)
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -1159,6 +1179,7 @@ private fun TabletSettingsScreen(
                                 onTestUpdateBannerClick = onTestUpdateBannerClick,
                                 onAccountClick = { openInlinePage(SettingsPage.Account) },
                                 onSwitchProfileClick = onSwitchProfile,
+                                onWatchPartyClick = watchPartyRowClick,
                                 showAccountSection = activeCategory == SettingsCategory.Account,
                                 showGeneralSection = activeCategory == SettingsCategory.General,
                                 showAboutSection = activeCategory == SettingsCategory.About,
@@ -1199,6 +1220,7 @@ private fun TabletSettingsScreen(
                         tunnelingEnabled = tunnelingEnabled,
                         useLibass = useLibass,
                         libassRenderType = libassRenderType,
+                    libassRenderScale = libassRenderScale,
                     )
                     SettingsPage.Streams -> streamsSettingsContent(
                         isTablet = true,
