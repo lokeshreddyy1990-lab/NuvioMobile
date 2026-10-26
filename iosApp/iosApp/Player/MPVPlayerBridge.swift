@@ -270,6 +270,16 @@ final class MPVPlayerViewController: UIViewController {
 
     private static let defaultAudioOutput = "audiounit"
 
+    /// mpv defaults we are restoring for ordinary (non-Telegram) playback.
+    private static let defaultDemuxerMaxBytes = 64 * 1024 * 1024
+    private static let defaultDemuxerMaxBackBytes = 16 * 1024 * 1024
+
+    /// Deeper window for the loopback Telegram reader: each chunk costs a synchronous
+    /// TDLib round-trip, so more lookahead is what keeps playback ahead of download latency.
+    /// 512 MiB forward / 128 MiB back stays well inside the 4 GiB retained-cache budget.
+    private static let telegramDemuxerMaxBytes = 512 * 1024 * 1024
+    private static let telegramDemuxerMaxBackBytes = 128 * 1024 * 1024
+
     private struct CachedNowPlayingMetadata {
         let title: String
         let subtitle: String?
@@ -667,6 +677,7 @@ final class MPVPlayerViewController: UIViewController {
         applyRequestHeaders(sanitizedHeaders)
         isPlayerLoading = true
         isPlayerEnded = false
+        applyDemuxerCacheSizing(for: request.urlString)
         applyAudioLanguagePreferences(preferredAudioLanguages)
         command("loadfile", args: [request.urlString, "replace"])
         if let audioUrl = request.audioUrl, !audioUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -680,6 +691,20 @@ final class MPVPlayerViewController: UIViewController {
                 self?.addSubtitle(subtitle, mode: "auto")
             }
         }
+    }
+
+    /// Telegram-backed streams are served from a loopback HTTP reader that performs a
+    /// synchronous TDLib `downloadFile` for every 1 MiB chunk. mpv's default forward buffer
+    /// (64 MiB) is sized for a normal network read and is too thin to hide that IPC latency,
+    /// so large split files stall with `paused-for-cache`. Give those URLs a deeper window.
+    ///
+    /// Kept scoped to the Telegram route so regular HTTP/HLS playback retains stock sizing.
+    private func applyDemuxerCacheSizing(for urlString: String) {
+        let isTelegramBacked = urlString.contains("/telegram/") || urlString.contains("127.0.0.1")
+        let forwardBytes = isTelegramBacked ? Self.telegramDemuxerMaxBytes : Self.defaultDemuxerMaxBytes
+        let backBytes = isTelegramBacked ? Self.telegramDemuxerMaxBackBytes : Self.defaultDemuxerMaxBackBytes
+        command("set", args: ["demuxer-max-bytes", "\(forwardBytes)"], checkForErrors: false)
+        command("set", args: ["demuxer-max-back-bytes", "\(backBytes)"], checkForErrors: false)
     }
 
     private func isViewportReadyForPlayback(queuedAtUptime: TimeInterval) -> Bool {

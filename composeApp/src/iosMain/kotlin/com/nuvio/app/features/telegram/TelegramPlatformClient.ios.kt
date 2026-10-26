@@ -1,6 +1,8 @@
 package com.nuvio.app.features.telegram
 
 import com.nuvio.app.features.telegram.iostelegram.NuvioTelegramCacheSize
+import com.nuvio.app.features.telegram.iostelegram.NuvioTelegramCachedCacheSize
+import com.nuvio.app.features.telegram.iostelegram.NuvioTelegramSetCacheLimit
 import com.nuvio.app.features.telegram.iostelegram.NuvioTelegramClearCache
 import com.nuvio.app.features.telegram.iostelegram.NuvioTelegramOptimizeCache
 import com.nuvio.app.features.telegram.iostelegram.NuvioTelegramFree
@@ -81,6 +83,12 @@ internal actual object TelegramPlatformClient {
     }
 
     actual fun cacheSizeBytes(): Long = NuvioTelegramCacheSize()
+
+    actual fun cachedCacheSizeBytes(): Long = NuvioTelegramCachedCacheSize()
+
+    actual fun setCacheLimitBytes(limit: Long) {
+        if (limit > 0L) NuvioTelegramSetCacheLimit(limit)
+    }
 
     actual fun clearCache() = NuvioTelegramClearCache()
 

@@ -24,7 +24,22 @@ private struct VirtualAsset {
     let innerSize: Int64
 }
 
-final class TelegramBridgeManager {
+/// Live playback state for one virtual asset, used to decide which parts may be evicted.
+///
+/// The player never asks for more than its demuxer window around the play head, so almost
+/// all of a large split movie is stale by the time it has been watched. Tracking the head
+/// and what the player still needs is what keeps a 23 GB file inside a 4 GB budget.
+private struct VirtualPlaybackState {
+    var highWaterMark: Int64 = 0
+    var lastAccessAt: TimeInterval = 0
+    /// Parts a player request is currently being served from. Never evictable.
+    var activePartIds: Set<Int32> = []
+    /// Bytes served through the loopback server for this asset. Used as the retention
+    /// measure, so pinned/transient bytes do not inflate the reported cache size.
+    var servedBytes: Int64 = 0
+}
+
+private final class TelegramBridgeManager {
     static let shared = TelegramBridgeManager()
 
     private let receiveQueue = DispatchQueue(label: "com.nuvio.telegram.receive", qos: .userInitiated)
@@ -45,16 +60,49 @@ final class TelegramBridgeManager {
     // be recognised by URL again.
     private var virtualIdsBySignature: [String: Int32] = [:]
     private var nextVirtualId: Int32 = 1
+    // Bounds memory: every Telegram search mints a virtual asset, and without a cap this
+    // map grows for the lifetime of the process. Insertion order is tracked separately so
+    // the oldest entries can be dropped when the cap is exceeded.
+    private var virtualAssetOrder: [Int32] = []
+    private let maxVirtualAssets = 64
     private var apiId: Int32 = 0
     private var apiHash = ""
     private var appVersion = ""
     private var lastCacheOptimizeAt: TimeInterval = 0
 
-    // ponytail: fixed 5 GB cap; raise via settings UI later if users ask
-    private let cacheLimitBytes: Int64 = 5 * 1024 * 1024 * 1024
+    // Default retained-cache budget. Overridable from the settings UI; the value is
+    // persisted by the Kotlin layer and pushed down via setCacheLimitBytes.
+    private let defaultCacheLimitBytes: Int64 = 4 * 1024 * 1024 * 1024
+    private(set) var cacheLimitBytes: Int64 = 4 * 1024 * 1024 * 1024
     private let storagePolicyTtl = 2_147_483_647
     private let storagePolicyCount = 2_147_483_647
     private let cacheOptimizeMinInterval: TimeInterval = 60
+    // Files touched within this window are never touched by the coarse optimizeStorage
+    // backstop, so a trim pass cannot race the player for bytes it is about to read.
+    private let storageImmunityDelay = 300
+
+    // Bytes served through the loopback server. This mirrors the on-disk cache closely
+    // enough to act as a cheap "are we over budget?" signal without paying for a
+    // synchronous getStorageStatisticsFast round-trip on every authorization poll.
+    private var servedByteCounter: Int64 = 0
+    private var lastServedByteReconcileAt: TimeInterval = 0
+    private var lastKnownCacheSize: Int64 = 0
+    // How long the served-byte counter is considered a usable proxy for on-disk size.
+    private let cacheCounterTrustSeconds: TimeInterval = 120
+
+    /// Active virtual assets keyed by the ids the loopback server serves.
+    private var virtualPlayback: [Int32: VirtualPlaybackState] = [:]
+    /// File ids belonging to any asset that is currently open. These are never evicted,
+    /// regardless of position, because the player may re-read header or seek-index bytes.
+    private var pinnedFileIds: Set<Int32> = []
+    /// Bytes behind the play head retained so a short rewind or A/V resync does not force a
+    /// re-download. Sized from the demuxer back buffer plus slack for container re-reads.
+    private let backBufferBytes: Int64 = 192 * 1024 * 1024
+    /// Bytes ahead of the play head retained to cover the demuxer forward window.
+    private let forwardBufferBytes: Int64 = 640 * 1024 * 1024
+    /// An asset with no read activity for this long is considered finished, so its pins
+    /// are released and its remaining parts become evictable.
+    private let idleAssetTimeoutSeconds: TimeInterval = 90
 
     private init() {}
 
@@ -120,9 +168,80 @@ final class TelegramBridgeManager {
             virtualIdsBySignature[signature] = virtualId
         }
         virtualAssets[virtualId] = spec
+        // Pin every part of this asset for as long as it is registered. The player re-reads
+        // headers and seek indexes at arbitrary times, so position alone is not enough.
+        pinnedFileIds.formUnion(spec.parts.map { $0.fileId })
+        virtualPlayback[virtualId] = VirtualPlaybackState(
+            highWaterMark: 0,
+            lastAccessAt: Date().timeIntervalSince1970,
+        )
+        touchVirtualAsset(virtualId)
         lock.unlock()
         let encodedName = encodedHeaderValue(spec.fileName)
         return "http://127.0.0.1:\(port)/telegram/v/\(virtualId)/\(encodedName)"
+    }
+
+    /// Marks which part is currently being read for a virtual asset and advances the play
+    /// head. Called from the serving path, so it reflects what the player actually consumed.
+    ///
+    /// `globalOffset` is in part-stream coordinates (i.e. including any container inner
+    /// offset), which is what the eviction window compares part ranges against.
+    private func noteVirtualAccess(virtualId: Int32, globalOffset: Int64, fileId: Int32, bytes: Int) {
+        lock.lock()
+        var state = virtualPlayback[virtualId] ?? VirtualPlaybackState()
+        state.lastAccessAt = Date().timeIntervalSince1970
+        state.highWaterMark = max(state.highWaterMark, globalOffset + Int64(bytes))
+        state.activePartIds.insert(fileId)
+        state.servedBytes += Int64(bytes)
+        virtualPlayback[virtualId] = state
+        lock.unlock()
+    }
+
+    /// Clears the in-flight marker for a part once its serve completes, so the part becomes
+    /// evictable again as soon as the head has moved past it.
+    private func clearVirtualPartAccess(virtualId: Int32, fileId: Int32) {
+        lock.lock()
+        virtualPlayback[virtualId]?.activePartIds.remove(fileId)
+        lock.unlock()
+    }
+
+    /// Releases pins for assets that have not been read from recently.
+    ///
+    /// Without this, a finished or abandoned playback would pin its parts for the lifetime
+    /// of the process, which both leaks disk and prevents the coarse backstop from running.
+    private func releaseIdleAssets() {
+        let now = Date().timeIntervalSince1970
+        lock.lock()
+        let idleIds = virtualPlayback.compactMap { id, state in
+            state.activePartIds.isEmpty && now - state.lastAccessAt > idleAssetTimeoutSeconds ? id : nil
+        }
+        for id in idleIds {
+            if let dropped = virtualAssets[id] {
+                pinnedFileIds.subtract(dropped.parts.map { $0.fileId })
+            }
+            virtualPlayback[id] = nil
+        }
+        lock.unlock()
+    }
+
+    /// Records access order and trims the oldest entries. Must be called with `lock` held.
+    private func touchVirtualAsset(_ virtualId: Int32) {
+        if let index = virtualAssetOrder.firstIndex(of: virtualId) {
+            virtualAssetOrder.remove(at: index)
+        }
+        virtualAssetOrder.append(virtualId)
+        while virtualAssetOrder.count > maxVirtualAssets {
+            let evicted = virtualAssetOrder.removeFirst()
+            guard evicted != virtualId else { continue }
+            if let dropped = virtualAssets[evicted] {
+                pinnedFileIds.subtract(dropped.parts.map { $0.fileId })
+            }
+            virtualAssets[evicted] = nil
+            virtualPlayback[evicted] = nil
+            // The signature mapping would otherwise resurrect a stale asset whose parts
+            // were already dropped, producing a URL the server cannot serve.
+            virtualIdsBySignature = virtualIdsBySignature.filter { $0.value != evicted }
+        }
     }
 
     func readConcat(partsJSON: String, offset: Int64, length: Int32) -> Data? {
@@ -130,20 +249,173 @@ final class TelegramBridgeManager {
         return readConcatRange(parts: parts, start: offset, end: offset + Int64(length) - 1)
     }
 
+    /// Cheap cached measurement for polling paths. Returns the last reconciled value
+    /// without blocking on a TDLib round-trip.
+    func cachedCacheSize() -> Int64 {
+        lock.lock()
+        let value = lastKnownCacheSize
+        lock.unlock()
+        return value
+    }
+
+    /// Authoritative measurement. Only call from user-initiated paths (settings page open,
+    /// clear cache, eviction pass) — it performs a synchronous TDLib request.
     func cacheSize() -> Int64 {
-        storageSizeFast() ?? directorySize(url: filesDirectory)
+        let measured = storageSizeFast() ?? directorySize(url: filesDirectory)
+        lock.lock()
+        lastKnownCacheSize = measured
+        // Reset the served-byte counter: it is now known to be a lower bound only, and
+        // leaving it stale would keep inflating the estimate on top of a fresh reading.
+        servedByteCounter = measured
+        lastServedByteReconcileAt = Date().timeIntervalSince1970
+        lock.unlock()
+        return measured
+    }
+
+    func setCacheLimitBytes(_ limit: Int64) {
+        // 0 is TDLib's "delete everything" sentinel, not "no cache" — reject it so a
+        // mis-set limit can never be interpreted as a wipe.
+        guard limit > 0 else { return }
+        lock.lock()
+        cacheLimitBytes = limit
+        lastCacheOptimizeAt = 0
+        lock.unlock()
     }
 
     func clearCache() {
         optimizeStorage(limitBytes: 0)
+        lock.lock()
+        lastKnownCacheSize = 0
+        servedByteCounter = 0
+        lastServedByteReconcileAt = Date().timeIntervalSince1970
+        lock.unlock()
+    }
+
+    /// Reclaims parts of an in-progress virtual asset that the player can no longer reach.
+    ///
+    /// The player only ever holds a demuxer window around the play head, so on a large split
+    /// movie every part once fully behind the head is dead weight. This is what stops a 23 GB
+    /// file from pulling all 23 GB onto disk.
+    ///
+    /// Safety rules, in order of priority:
+    /// 1. Never touch a part with a serve in flight.
+    /// 2. Never touch a part still inside the retained window (the head may move backwards).
+    /// 3. Never touch the first or last part: containers store header and seek index there.
+    /// 4. Delete at most one part per call, and only after the head is a full back-buffer
+    ///    past the part's end. This keeps a concurrent `downloadFile` for a neighbouring
+    ///    part from being disturbed, since TDLib deletes whole files rather than ranges.
+    private func evictStalePartsIfNeeded(virtualId: Int32) {
+        lock.lock()
+        guard let asset = virtualAssets[virtualId],
+              let state = virtualPlayback[virtualId] else {
+            lock.unlock()
+            return
+        }
+        // Head offsets are tracked in part-stream coordinates, the same space the part
+        // ranges live in, so they compare directly below.
+        let head = state.highWaterMark
+        let active = state.activePartIds
+        let retainBehind = backBufferBytes
+        let retainAhead = forwardBufferBytes
+        let parts = asset.parts
+        let mounted = pinnedFileIds
+        let assetStart = asset.innerOffset
+        let assetEnd = asset.innerOffset + asset.innerSize
+        lock.unlock()
+
+        guard parts.count > 2 else { return }
+        let lastIndex = parts.count - 1
+        // Head offsets outside the asset (e.g. before playback started) carry no signal.
+        guard head >= assetStart else { return }
+
+        for (index, part) in parts.enumerated() {
+            // Rules 1 and 3.
+            if index == 0 || index == lastIndex { continue }
+            if active.contains(part.fileId) { continue }
+            guard mounted.contains(part.fileId) else { continue }
+
+            let partStart = part.cumStart
+            let partEnd = part.cumStart + part.size
+            // Rule 2: keep anything that overlaps the retained window, measured in the same
+            // part-stream coordinates the head is tracked in.
+            let windowStart = max(0, head - retainBehind)
+            let windowEnd = min(assetEnd, head + retainAhead)
+            if partEnd > windowStart && partStart < windowEnd { continue }
+            // Only reclaim fully-consumed parts.
+            guard partEnd <= windowStart else { continue }
+
+            // Reclaim off the serving path: deleteFile is a blocking TDLib round-trip and
+            // running it inline would stall the response for the chunk currently being sent.
+            // Drop the pin first so this part is not reconsidered on every later chunk.
+            lock.lock()
+            self.pinnedFileIds.remove(part.fileId)
+            lock.unlock()
+            let fileId = part.fileId
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                self?.deleteCacheFile(fileId: fileId)
+            }
+            // One reclamation per call: reclaiming in bulk while the player is issuing
+            // overlapping reads risks deleting a part that is about to be requested.
+            return
+        }
+    }
+
+    /// Removes one file's downloaded data without disturbing anything else.
+    ///
+    /// Deliberately not `optimizeStorage`: that call takes a size budget and a file-type
+    /// filter, so it cannot exclude the file being played and will evict live bytes.
+    private func deleteCacheFile(fileId: Int32) {
+        _ = request([
+            "@type": "deleteFile",
+            "file_id": fileId,
+        ], timeout: 30)
     }
 
     func optimizeCacheIfNeeded() {
+        releaseIdleAssets()
         let now = Date().timeIntervalSince1970
-        guard now - lastCacheOptimizeAt >= cacheOptimizeMinInterval else { return }
-        guard cacheSize() > cacheLimitBytes else { return }
+        let limit: Int64
+        lock.lock()
+        // A stream is open: per-part eviction owns reclamation now. The coarse pass cannot
+        // exclude the live file and would delete bytes the player is reading.
+        guard pinnedFileIds.isEmpty else {
+            lock.unlock()
+            return
+        }
+        guard now - lastCacheOptimizeAt >= cacheOptimizeMinInterval else {
+            lock.unlock()
+            return
+        }
+        limit = cacheLimitBytes
+        lock.unlock()
+
+        // Prefer the cheap counter; only fall back to the blocking measurement when the
+        // counter cannot answer the question.
+        lock.lock()
+        let counterAge = now - lastServedByteReconcileAt
+        let counterValue = lastKnownCacheSize
+        lock.unlock()
+        let candidate = counterAge <= cacheCounterTrustSeconds
+            ? counterValue
+            : cacheSize()
+        guard candidate > limit else {
+            // Under budget: remember that the decision was made so the next tick reuses the
+            // counter instead of paying for another blocking measurement.
+            lock.lock()
+            lastServedByteReconcileAt = now
+            lock.unlock()
+            return
+        }
+
+        lock.lock()
         lastCacheOptimizeAt = now
-        optimizeStorage(limitBytes: cacheLimitBytes)
+        lock.unlock()
+        optimizeStorage(limitBytes: limit)
+        // The trim changed the picture; force a re-measure on next demand rather than
+        // trusting a stale number.
+        lock.lock()
+        lastServedByteReconcileAt = 0
+        lock.unlock()
     }
 
     private func storageSizeFast() -> Int64? {
@@ -162,7 +434,7 @@ final class TelegramBridgeManager {
             "size": limitBytes,
             "ttl": storagePolicyTtl,
             "count": storagePolicyCount,
-            "immunity_delay": 0,
+            "immunity_delay": storageImmunityDelay,
             "file_types": [
                 ["@type": "fileTypeVideo"],
                 ["@type": "fileTypeDocument"],
@@ -410,6 +682,7 @@ final class TelegramBridgeManager {
                     parts: asset.parts,
                     offset: asset.innerOffset + range.lowerBound,
                     end: asset.innerOffset + range.upperBound,
+                    virtualId: virtualId,
                     on: connection
                 )
             }
@@ -481,11 +754,18 @@ final class TelegramBridgeManager {
             parts: [VirtualPart(fileId: fileId, size: end + 1, cumStart: 0)],
             offset: offset,
             end: end,
+            virtualId: nil,
             on: connection
         )
     }
 
-    private func streamConcat(parts: [VirtualPart], offset: Int64, end: Int64, on connection: NWConnection) {
+    private func streamConcat(
+        parts: [VirtualPart],
+        offset: Int64,
+        end: Int64,
+        virtualId: Int32?,
+        on connection: NWConnection
+    ) {
         guard offset <= end else {
             connection.send(content: nil, isComplete: true, completion: .contentProcessed { _ in connection.cancel() })
             return
@@ -501,15 +781,37 @@ final class TelegramBridgeManager {
             guard let self,
                   let data = self.downloadSlice(fileId: mapped.part.fileId, offset: mapped.localOffset, length: chunkSize),
                   !data.isEmpty else {
+                if let virtualId {
+                    self?.clearVirtualPartAccess(virtualId: virtualId, fileId: mapped.part.fileId)
+                }
                 connection.cancel()
                 return
             }
             connection.send(content: data, completion: .contentProcessed { [weak self] error in
+                if let virtualId {
+                    self?.clearVirtualPartAccess(virtualId: virtualId, fileId: mapped.part.fileId)
+                }
                 guard error == nil else {
                     connection.cancel()
                     return
                 }
-                self?.streamConcat(parts: parts, offset: offset + Int64(data.count), end: end, on: connection)
+                if let virtualId {
+                    self?.noteVirtualAccess(
+                        virtualId: virtualId,
+                        globalOffset: offset,
+                        fileId: mapped.part.fileId,
+                        bytes: data.count
+                    )
+                    // Past the head: reclaim parts that can no longer be needed.
+                    self?.evictStalePartsIfNeeded(virtualId: virtualId)
+                }
+                self?.streamConcat(
+                    parts: parts,
+                    offset: offset + Int64(data.count),
+                    end: end,
+                    virtualId: virtualId,
+                    on: connection
+                )
             })
         }
     }
@@ -560,10 +862,25 @@ final class TelegramBridgeManager {
         defer { try? handle.close() }
         do {
             try handle.seek(toOffset: UInt64(offset))
-            return try handle.read(upToCount: Int(length))
+            let data = try handle.read(upToCount: Int(length))
+            noteServedBytes(data?.count ?? 0)
+            return data
         } catch {
             return nil
         }
+    }
+
+    /// Tracks bytes handed to the player so eviction decisions do not need a blocking
+    /// getStorageStatisticsFast call. The counter only ever grows, so it is a lower bound
+    /// on the on-disk cache — safe for "are we over budget?" checks.
+    private func noteServedBytes(_ count: Int) {
+        guard count > 0 else { return }
+        lock.lock()
+        servedByteCounter += Int64(count)
+        if servedByteCounter > lastKnownCacheSize {
+            lastKnownCacheSize = servedByteCounter
+        }
+        lock.unlock()
     }
 
     /// Stable identity of a virtual asset: the ordered part list plus the exposed byte
@@ -822,6 +1139,16 @@ func NuvioTelegramReadConcat(
 @_cdecl("NuvioTelegramCacheSize")
 func NuvioTelegramCacheSize() -> Int64 {
     TelegramBridgeManager.shared.cacheSize()
+}
+
+@_cdecl("NuvioTelegramCachedCacheSize")
+func NuvioTelegramCachedCacheSize() -> Int64 {
+    TelegramBridgeManager.shared.cachedCacheSize()
+}
+
+@_cdecl("NuvioTelegramSetCacheLimit")
+func NuvioTelegramSetCacheLimit(_ limitBytes: Int64) {
+    TelegramBridgeManager.shared.setCacheLimitBytes(limitBytes)
 }
 
 @_cdecl("NuvioTelegramClearCache")

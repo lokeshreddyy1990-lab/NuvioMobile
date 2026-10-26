@@ -21,6 +21,14 @@ internal expect object TelegramPlatformClient {
 
     fun cacheSizeBytes(): Long
 
+    /**
+     * Non-blocking reading of the last measured cache size. Use on periodic paths where a
+     * synchronous TDLib round-trip would stall the caller.
+     */
+    fun cachedCacheSizeBytes(): Long
+
+    fun setCacheLimitBytes(limit: Long)
+
     fun clearCache()
 
     fun optimizeCacheIfNeeded()
