@@ -180,8 +180,11 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
         outlineSize: Float,
         bold: Bool,
         fontSize: Float,
+        subScale: Float,
         subPos: Int32,
-        stripSdh: Bool
+        stripSdh: Bool,
+        assOverride: String,
+        forceStyle: String
     ) {
         playerVC?.applySubtitleStyle(
             textColor: textColor,
@@ -190,8 +193,11 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
             outlineSize: outlineSize,
             bold: bold,
             fontSize: fontSize,
+            subScale: subScale,
             subPos: Int(subPos),
-            stripSdh: stripSdh
+            stripSdh: stripSdh,
+            assOverride: assOverride,
+            forceStyle: forceStyle
         )
     }
 
@@ -932,28 +938,85 @@ final class MPVPlayerViewController: UIViewController {
         outlineSize: Float,
         bold: Bool,
         fontSize: Float,
+        subScale: Float,
         subPos: Int,
-        stripSdh: Bool
+        stripSdh: Bool,
+        assOverride: String,
+        forceStyle: String
     ) {
         guard mpv != nil else { return }
 
-        checkError(mpv_set_property_string(mpv, "sub-ass-override", "no"))
+        // Full mpv parity with the Android libmpv engine / PlayTorrioV3: honour the
+        // user's ASS/SSA script override mode and, when overriding, inject the forced
+        // style payload. An empty forceStyle (Preserve) clears any previous value.
+        checkError(mpv_set_property_string(mpv, "sub-ass-override", assOverride))
+
+        // "Preserve" ("no") is a complete no-op: keep ASS/SSA scripts — and mpv's own
+        // defaults for plain SRT/VTT — exactly as authored, and undo anything a
+        // previously selected override mode may have applied.
+        if assOverride == "no" {
+            resetSubtitleStyleOverrides()
+            return
+        }
+
+        setStringProperty("sub-ass-force-margins", "yes")
+        setStringProperty("sub-use-margins", "yes")
+        setStringProperty("sub-ass-force-style", forceStyle)
+
         checkError(mpv_set_property_string(mpv, "sub-color", textColor))
-        checkError(mpv_set_property_string(mpv, "sub-back-color", backgroundColor))
-        checkError(mpv_set_property_string(mpv, "sub-outline-color", outlineColor))
-        checkError(mpv_set_property_string(mpv, "sub-border-style", backgroundColor.hasPrefix("#00") ? "outline-and-shadow" : "opaque-box"))
+        // Opaque background draws one box per line: fill goes through the outline colour and
+        // back-colour stays transparent so boxes don't stack (Telegram iOS parity).
+        let isBoxed = !backgroundColor.hasPrefix("#00")
+        checkError(mpv_set_property_string(mpv, "sub-back-color", isBoxed ? "#00000000" : backgroundColor))
+        checkError(mpv_set_property_string(mpv, "sub-outline-color", isBoxed ? backgroundColor : outlineColor))
+        checkError(mpv_set_property_string(mpv, "sub-border-style", isBoxed ? "opaque-box" : "outline-and-shadow"))
+        setStringProperty("sub-line-spacing", isBoxed ? "9" : "0")
+        setStringProperty("sub-shadow-offset", isBoxed ? "1.3" : "0")
         setStringProperty("sub-bold", bold ? "yes" : "no")
 
-        var outline = Double(outlineSize)
+        var outline = isBoxed ? 3.0 : Double(outlineSize)
         checkError(mpv_set_property(mpv, "sub-outline-size", MPV_FORMAT_DOUBLE, &outline))
 
         var size = Double(fontSize)
         checkError(mpv_set_property(mpv, "sub-font-size", MPV_FORMAT_DOUBLE, &size))
 
+        var scale = Double(subScale)
+        checkError(mpv_set_property(mpv, "sub-scale", MPV_FORMAT_DOUBLE, &scale))
+
         var position = Int64(subPos)
         checkError(mpv_set_property(mpv, "sub-pos", MPV_FORMAT_INT64, &position))
         setStringProperty("sub-filter-sdh", stripSdh ? "yes" : "no")
         setStringProperty("sub-filter-sdh-harder", stripSdh ? "yes" : "no")
+    }
+
+    /// Restore mpv's built-in subtitle style defaults so that "Preserve" truly
+    /// behaves like no override at all — it also clears styling left behind by a
+    /// previously active override mode, so authored ASS/SSA layout wins again.
+    private func resetSubtitleStyleOverrides() {
+        guard mpv != nil else { return }
+        // Drop any forced style / forced margins so the authored script layout wins.
+        setStringProperty("sub-ass-force-style", "")
+        setStringProperty("sub-ass-force-margins", "no")
+        setStringProperty("sub-use-margins", "yes")
+        // mpv defaults for the options the override modes mutate.
+        checkError(mpv_set_property_string(mpv, "sub-color", "#FFFFFFFF"))
+        checkError(mpv_set_property_string(mpv, "sub-back-color", "#FF000000"))
+        checkError(mpv_set_property_string(mpv, "sub-outline-color", "#FF000000"))
+        checkError(mpv_set_property_string(mpv, "sub-border-color", "#FF000000"))
+        checkError(mpv_set_property_string(mpv, "sub-border-style", "outline-and-shadow"))
+        setStringProperty("sub-line-spacing", "0")
+        setStringProperty("sub-shadow-offset", "0")
+        setStringProperty("sub-bold", "no")
+        var size = 55.0
+        checkError(mpv_set_property(mpv, "sub-font-size", MPV_FORMAT_DOUBLE, &size))
+        var scale = 1.0
+        checkError(mpv_set_property(mpv, "sub-scale", MPV_FORMAT_DOUBLE, &scale))
+        var outline = 3.0
+        checkError(mpv_set_property(mpv, "sub-outline-size", MPV_FORMAT_DOUBLE, &outline))
+        var position: Int64 = 100
+        checkError(mpv_set_property(mpv, "sub-pos", MPV_FORMAT_INT64, &position))
+        setStringProperty("sub-filter-sdh", "no")
+        setStringProperty("sub-filter-sdh-harder", "no")
     }
 
     func destroyPlayer() {

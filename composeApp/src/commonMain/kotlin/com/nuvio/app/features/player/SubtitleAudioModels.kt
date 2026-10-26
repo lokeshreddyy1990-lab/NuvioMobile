@@ -42,6 +42,27 @@ const val SUBTITLE_AUTO_SYNC_REACTION_COMPENSATION_MS = 300L
 internal val subtitleFontSizeRangeSp: IntRange
     get() = if (isIos) 6..40 else 12..40
 
+/** Subtitle scale multiplier in percent; 100 means the unscaled size. */
+internal val subtitleScalePercentRange: IntRange = 50..250
+
+/**
+ * Mirrors mpv's `sub-ass-override` values. Persisted inside [SubtitleStyleState] so it
+ * propagates through the existing `applySubtitleStyle(style)` plumbing on every engine.
+ */
+enum class AssOverrideMode(val mpvValue: String) {
+    /** Keep authored ASS/SSA styling (mpv "no"). Default. */
+    Preserve("no"),
+
+    /** Respect embedded styles but allow scaling (mpv "scale"). */
+    ScaleOnly("scale"),
+
+    /** Override colours + outlines with user settings (mpv "yes"). */
+    OverrideColorsAndOutlines("yes"),
+
+    /** Aggressively force the whole style, breaking typesetting/karaoke (mpv "force"). */
+    ForceFullOverride("force"),
+}
+
 data class SubtitleStyleState(
     val textColor: Color = Color.White,
     val backgroundColor: Color = Color.Transparent,
@@ -50,10 +71,12 @@ data class SubtitleStyleState(
     val outlineWidth: Int = 2,
     val bold: Boolean = false,
     val fontSizeSp: Int = 18,
+    val scalePercent: Int = 100,
     val bottomOffset: Int = 20,
     val stripSdh: Boolean = false,
     val useForcedSubtitles: Boolean = false,
     val showOnlyPreferredLanguages: Boolean = false,
+    val subAssOverride: AssOverrideMode = AssOverrideMode.Preserve,
 ) {
     companion object {
         val DEFAULT = SubtitleStyleState()

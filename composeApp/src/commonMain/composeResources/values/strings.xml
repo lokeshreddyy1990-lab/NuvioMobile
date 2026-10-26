@@ -418,6 +418,11 @@
     <string name="compose_nav_library">Library</string>
     <string name="compose_nav_profile">Profile</string>
     <string name="compose_nav_search">Search</string>
+    <string name="compose_player_ass_override">ASS Override Mode</string>
+    <string name="compose_player_ass_override_preserve">Preserve</string>
+    <string name="compose_player_ass_override_scale">Scale</string>
+    <string name="compose_player_ass_override_colors">Colours</string>
+    <string name="compose_player_ass_override_force">Force</string>
     <string name="compose_player_audio_tracks">Audio Tracks</string>
     <string name="compose_player_audio">Audio</string>
     <string name="compose_player_auto_sync">Auto Sync</string>
@@ -434,6 +439,8 @@
     <string name="compose_player_episodes">Episodes</string>
     <string name="compose_player_font_size">Font Size</string>
     <string name="compose_player_font_size_value">%1$dsp</string>
+    <string name="compose_player_subtitle_scale">Subtitle Scale</string>
+    <string name="compose_player_subtitle_scale_value">%1$d%%</string>
     <string name="compose_player_lock_controls">Lock player controls</string>
     <string name="compose_player_loading_lines">Loading subtitle lines...</string>
     <string name="compose_player_languages">Languages</string>
@@ -471,6 +478,7 @@
     <string name="compose_player_subtitle_delay">Subtitle Delay</string>
     <string name="compose_player_subtitles">Subtitles</string>
     <string name="compose_player_text_opacity">Text Opacity</string>
+    <string name="compose_player_background_opacity">Background Opacity</string>
     <string name="compose_player_brightness_level">Brightness %1$s</string>
     <string name="compose_player_volume_level">Volume %1$s</string>
     <string name="compose_player_muted">Muted</string>
@@ -1165,8 +1173,17 @@
     <string name="settings_playback_regex_preset_quality_720p_smaller">720p / Smaller</string>
     <string name="settings_playback_regex_preset_web_sources">WEB Sources</string>
     <string name="settings_playback_render_type">Libass Render Mode</string>
-    <string name="settings_playback_render_scale">Subtitle Render Resolution</string>
-    <string name="settings_playback_render_scale_description">Lower resolution improves performance on heavy typesetting at the cost of sharpness</string>
+    <string name="settings_playback_render_type_cues">Standard Cues</string>
+    <string name="settings_playback_render_type_effects_canvas">Effects Canvas</string>
+    <string name="settings_playback_render_type_effects_opengl">Effects OpenGL</string>
+    <string name="settings_playback_render_type_overlay_canvas">Overlay Canvas</string>
+    <string name="settings_playback_render_type_overlay_opengl">Overlay OpenGL (Recommended)</string>
+    <string name="settings_playback_ass_override_mode">ASS/SSA Script Override</string>
+    <string name="settings_playback_ass_override_mode_description">How much your subtitle style overrides embedded ASS/SSA scripts (karaoke, typesetting). Applies to libmpv/MPVKit playback.</string>
+    <string name="settings_playback_ass_override_preserve">Preserve Anime &amp; SSA/ASS Styling (Recommended)</string>
+    <string name="settings_playback_ass_override_scale">Scale Only</string>
+    <string name="settings_playback_ass_override_colors">Override Colours &amp; Outlines</string>
+    <string name="settings_playback_ass_override_force">Force Full Override (Aggressive)</string>
     <string name="settings_playback_reuse_last_link">Reuse Last Link</string>
     <string name="settings_playback_reuse_last_link_description">Auto-play your last working stream for this same movie/episode when cache is still valid</string>
     <string name="settings_playback_secondary_audio_language">Secondary Audio Language</string>
@@ -1197,6 +1214,7 @@
     <string name="settings_playback_parental_guide">Content Warnings</string>
     <string name="settings_playback_parental_guide_description">Show parental guidance overlay when playback starts.</string>
     <string name="settings_playback_subtitle_background_color">Background Color</string>
+    <string name="settings_playback_subtitle_background_opacity">Background Opacity</string>
     <string name="settings_playback_subtitle_bold">Bold</string>
     <string name="settings_playback_subtitle_bold_description">Use a heavier subtitle font weight.</string>
     <string name="settings_playback_subtitle_color_transparent">Transparent</string>
