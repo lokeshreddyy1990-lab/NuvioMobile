@@ -17,6 +17,10 @@ internal actual object TelegramPlatformClient {
 
     actual fun cacheSizeBytes(): Long = 0L
 
+    actual fun cachedCacheSizeBytes(): Long = 0L
+
+    actual fun setCacheLimitBytes(limit: Long) = Unit
+
     actual fun clearCache() = Unit
 
     actual fun optimizeCacheIfNeeded() = Unit

@@ -46,12 +46,20 @@ enum class TelegramAuthorizationMode {
     Error,
 }
 
+/**
+ * Sentinel meaning TDLib could not report a cache size. Negative so it can never be
+ * confused with a real (non-negative) measurement.
+ */
+internal const val UnavailableCacheSize: Long = -1L
+
 data class TelegramUiState(
     val mode: TelegramAuthorizationMode = TelegramAuthorizationMode.Starting,
     val displayName: String? = null,
     val username: String? = null,
     val errorMessage: String? = null,
     val cacheSizeBytes: Long = 0L,
+    val cacheSizeLimit: TelegramCacheSize = TelegramCacheSize.Default,
+    val cacheSizeMeasured: Boolean = false,
     val isBusy: Boolean = false,
 ) {
     val isConnected: Boolean get() = mode == TelegramAuthorizationMode.Ready
@@ -65,10 +73,15 @@ object TelegramRepository {
 
     private var initializationJob: Job? = null
     private var initialized = false
+    private var lastAppliedCacheLimit: Long = -1L
 
     fun ensureLoaded() {
         if (initialized) return
         initialized = true
+        val storedLimit = TelegramSettingsStorage.loadCacheSizeLimit()
+        lastAppliedCacheLimit = storedLimit.bytes
+        _uiState.value = _uiState.value.copy(cacheSizeLimit = storedLimit)
+        TelegramPlatformClient.setCacheLimitBytes(storedLimit.bytes)
         initializationJob = scope.launch {
             when {
                 !TelegramPlatformClient.isSupported -> {
@@ -158,15 +171,42 @@ object TelegramRepository {
 
     fun refreshCacheSize() {
         scope.launch {
-            TelegramPlatformClient.optimizeCacheIfNeeded()
-            _uiState.value = _uiState.value.copy(cacheSizeBytes = TelegramPlatformClient.cacheSizeBytes())
+            applyCacheLimit(_uiState.value.cacheSizeLimit)
+            _uiState.value = _uiState.value.copy(
+                cacheSizeBytes = measureCacheBytes(),
+                cacheSizeMeasured = true,
+            )
         }
+    }
+
+    private fun measureCacheBytes(): Long {
+        val measured = TelegramPlatformClient.cacheSizeBytes()
+        // A non-positive reading means TDLib could not report a size; surface that as
+        // "unavailable" rather than a misleading "0 B".
+        return if (measured > 0L) measured else UnavailableCacheSize
+    }
+
+    fun setCacheSizeLimit(limit: TelegramCacheSize) {
+        if (limit == _uiState.value.cacheSizeLimit) return
+        applyCacheLimit(limit)
+        TelegramSettingsStorage.saveCacheSizeLimit(limit)
+        _uiState.value = _uiState.value.copy(cacheSizeLimit = limit)
+    }
+
+    private fun applyCacheLimit(limit: TelegramCacheSize) {
+        if (!TelegramPlatformClient.isSupported) return
+        if (limit.bytes == lastAppliedCacheLimit) return
+        lastAppliedCacheLimit = limit.bytes
+        TelegramPlatformClient.setCacheLimitBytes(limit.bytes)
     }
 
     fun clearCache() {
         scope.launch {
             TelegramPlatformClient.clearCache()
-            _uiState.value = _uiState.value.copy(cacheSizeBytes = TelegramPlatformClient.cacheSizeBytes())
+            _uiState.value = _uiState.value.copy(
+                cacheSizeBytes = measureCacheBytes(),
+                cacheSizeMeasured = true,
+            )
         }
     }
 
@@ -431,7 +471,10 @@ object TelegramRepository {
             mode = mode,
             errorMessage = if (response.type == "error") response.string("message") else null,
             isBusy = false,
-            cacheSizeBytes = TelegramPlatformClient.cacheSizeBytes(),
+            // Non-blocking: this runs on the 750ms-5s authorization poll and must never
+            // perform a synchronous TDLib round-trip. The authoritative measurement is
+            // fetched on demand via refreshCacheSize().
+            cacheSizeBytes = TelegramPlatformClient.cachedCacheSizeBytes(),
         )
         if (mode == TelegramAuthorizationMode.Ready) {
             maybeOptimizeCache()
