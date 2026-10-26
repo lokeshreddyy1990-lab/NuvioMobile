@@ -45,10 +45,12 @@ actual object PlayerSettingsStorage {
     private const val subtitleOutlineWidthKey = "subtitle_outline_width"
     private const val subtitleBoldKey = "subtitle_bold"
     private const val subtitleFontSizeSpKey = "subtitle_font_size_sp"
+    private const val subtitleScalePercentKey = "subtitle_scale_percent"
     private const val subtitleBottomOffsetKey = "subtitle_bottom_offset"
     private const val subtitleStripSdhKey = "subtitle_strip_sdh"
     private const val subtitleUseForcedSubtitlesKey = "subtitle_use_forced_subtitles"
     private const val subtitleShowOnlyPreferredLanguagesKey = "subtitle_show_only_preferred_languages"
+    private const val subAssOverrideKey = "sub_ass_override"
     private const val streamReuseLastLinkEnabledKey = "stream_reuse_last_link_enabled"
     private const val streamReuseLastLinkCacheHoursKey = "stream_reuse_last_link_cache_hours"
     private const val androidPlaybackEngineKey = "android_playback_engine"
@@ -133,10 +135,12 @@ actual object PlayerSettingsStorage {
         subtitleOutlineWidthKey,
         subtitleBoldKey,
         subtitleFontSizeSpKey,
+        subtitleScalePercentKey,
         subtitleBottomOffsetKey,
         subtitleStripSdhKey,
         subtitleUseForcedSubtitlesKey,
         subtitleShowOnlyPreferredLanguagesKey,
+        subAssOverrideKey,
         streamReuseLastLinkEnabledKey,
         streamReuseLastLinkCacheHoursKey,
         androidPlaybackEngineKey,
@@ -569,7 +573,24 @@ actual object PlayerSettingsStorage {
             ?.putInt(ProfileScopedKey.of(subtitleFontSizeSpKey), fontSizeSp)
             ?.apply()
     }
+ScalePercent(): Int? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(subtitleScalePercentKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getInt(key, SubtitleStyleState.DEFAULT.scalePercent)
+            } else {
+                null
+            }
+        }
 
+    actual fun saveSubtitleScalePercent(scalePercent: Int) {
+        preferences
+            ?.edit()
+            ?.putInt(ProfileScopedKey.of(subtitleScalePercentKey), scalePercent)
+            ?.apply()
+    }
+
+    actual fun loadSubtitle
     actual fun loadSubtitleBottomOffset(): Int? =
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(subtitleBottomOffsetKey)
@@ -635,6 +656,16 @@ actual object PlayerSettingsStorage {
         preferences
             ?.edit()
             ?.putBoolean(ProfileScopedKey.of(subtitleShowOnlyPreferredLanguagesKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadSubAssOverride(): String? =
+        preferences?.getString(ProfileScopedKey.of(subAssOverrideKey), null)
+
+    actual fun saveSubAssOverride(mode: String) {
+        preferences
+            ?.edit()
+            ?.putString(ProfileScopedKey.of(subAssOverrideKey), mode)
             ?.apply()
     }
 
@@ -1338,6 +1369,7 @@ actual object PlayerSettingsStorage {
         loadShowParentalGuide()?.let { put(showParentalGuideKey, encodeSyncBoolean(it)) }
         loadResizeMode()?.let { put(resizeModeKey, encodeSyncString(it)) }
         loadHoldToSpeedEnabled()?.let { put(holdToSpeedEnabledKey, encodeSyncBoolean(it)) }
+        loadSubtitleScalePercent()?.let { put(subtitleScalePercentKey, encodeSyncInt(it)) }
         loadHoldToSpeedValue()?.let { put(holdToSpeedValueKey, encodeSyncFloat(it)) }
         loadTouchGesturesEnabled()?.let { put(touchGesturesEnabledKey, encodeSyncBoolean(it)) }
         loadExternalPlayerEnabled()?.let { put(externalPlayerEnabledKey, encodeSyncBoolean(it)) }
@@ -1359,6 +1391,7 @@ actual object PlayerSettingsStorage {
         loadSubtitleStripSdh()?.let { put(subtitleStripSdhKey, encodeSyncBoolean(it)) }
         loadSubtitleUseForcedSubtitles()?.let { put(subtitleUseForcedSubtitlesKey, encodeSyncBoolean(it)) }
         loadSubtitleShowOnlyPreferredLanguages()?.let { put(subtitleShowOnlyPreferredLanguagesKey, encodeSyncBoolean(it)) }
+        loadSubAssOverride()?.let { put(subAssOverrideKey, encodeSyncString(it)) }
         loadStreamReuseLastLinkEnabled()?.let { put(streamReuseLastLinkEnabledKey, encodeSyncBoolean(it)) }
         loadStreamReuseLastLinkCacheHours()?.let { put(streamReuseLastLinkCacheHoursKey, encodeSyncInt(it)) }
         loadAndroidPlaybackEngine()?.let { put(androidPlaybackEngineKey, encodeSyncString(it)) }
@@ -1436,11 +1469,13 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(subtitleOutlineEnabledKey)?.let(::saveSubtitleOutlineEnabled)
         payload.decodeSyncInt(subtitleOutlineWidthKey)?.let(::saveSubtitleOutlineWidth)
         payload.decodeSyncBoolean(subtitleBoldKey)?.let(::saveSubtitleBold)
+        payload.decodeSyncInt(subtitleScalePercentKey)?.let(::saveSubtitleScalePercent)
         payload.decodeSyncInt(subtitleFontSizeSpKey)?.let(::saveSubtitleFontSizeSp)
         payload.decodeSyncInt(subtitleBottomOffsetKey)?.let(::saveSubtitleBottomOffset)
         payload.decodeSyncBoolean(subtitleStripSdhKey)?.let(::saveSubtitleStripSdh)
         payload.decodeSyncBoolean(subtitleUseForcedSubtitlesKey)?.let(::saveSubtitleUseForcedSubtitles)
         payload.decodeSyncBoolean(subtitleShowOnlyPreferredLanguagesKey)?.let(::saveSubtitleShowOnlyPreferredLanguages)
+        payload.decodeSyncString(subAssOverrideKey)?.let(::saveSubAssOverride)
         payload.decodeSyncBoolean(streamReuseLastLinkEnabledKey)?.let(::saveStreamReuseLastLinkEnabled)
         payload.decodeSyncInt(streamReuseLastLinkCacheHoursKey)?.let(::saveStreamReuseLastLinkCacheHours)
         payload.decodeSyncString(androidPlaybackEngineKey)?.let(::saveAndroidPlaybackEngine)

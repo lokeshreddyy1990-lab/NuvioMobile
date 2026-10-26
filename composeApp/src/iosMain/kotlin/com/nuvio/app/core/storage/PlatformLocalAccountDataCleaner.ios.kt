@@ -40,6 +40,7 @@ internal actual object PlatformLocalAccountDataCleaner {
         "subtitle_text_color",
         "subtitle_outline_enabled",
         "subtitle_font_size_sp",
+        "subtitle_scale_percent",
         "subtitle_bottom_offset",
         "stream_reuse_last_link_enabled",
         "stream_reuse_last_link_cache_hours",

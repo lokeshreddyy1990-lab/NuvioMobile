@@ -61,6 +61,7 @@ import com.nuvio.app.features.player.exoNativeMemoryInfo
 import com.nuvio.app.features.player.isExoNativeMemorySupported
 import com.nuvio.app.features.player.playbackCacheUsableSpaceBytes
 import com.nuvio.app.features.player.AndroidPlaybackEngine
+import com.nuvio.app.features.player.AssOverrideMode
 import com.nuvio.app.features.player.AudioLanguageOption
 import com.nuvio.app.features.player.AvailableLanguageOptions
 import com.nuvio.app.features.player.ExternalPlayerApp
@@ -673,6 +674,21 @@ private fun PlaybackSettingsSection(
                     onClick = { showSubtitleBackgroundColorDialog = true },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
+                SettingsSliderRow(
+                    title = stringResource(Res.string.settings_playback_subtitle_background_opacity),
+                    value = (subtitleStyle.backgroundColor.alpha * 100f).roundToInt(),
+                    valueText = { opacity -> "$opacity%" },
+                    valueRange = 0..100,
+                    step = 10,
+                    isTablet = isTablet,
+                    enabled = subtitleRenderingEnabled,
+                    onValueChange = { value ->
+                        PlayerSettingsRepository.setSubtitleStyle(
+                            subtitleStyle.copy(backgroundColor = subtitleStyle.backgroundColor.copy(alpha = value / 100f)),
+                        )
+                    },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_subtitle_outline),
                     description = stringResource(Res.string.settings_playback_subtitle_outline_description),
@@ -715,6 +731,14 @@ private fun PlaybackSettingsSection(
                         )
                     }
                 }
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = stringResource(Res.string.settings_playback_ass_override_mode),
+                    description = stringResource(Res.string.settings_playback_ass_override_mode_description),
+                    enabled = subtitleRenderingEnabled,
+                    isTablet = isTablet,
+                    onClick = { showAssOverrideDialog = true },
+                )
             }
         }
 
@@ -2338,7 +2362,45 @@ private fun LibassRenderScaleDialog(
     }
 }
 
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun AssOverrideModeDialog(
+    selectedMode: AssOverrideMode,
+    onModeSelected: (AssOverrideMode) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val options = listOf(
+        AssOverrideMode.Preserve to Res.string.settings_playback_ass_override_preserve,
+        AssOverrideMode.ScaleOnly to Res.string.settings_playback_ass_override_scale,
+        AssOverrideMode.OverrideColorsAndOutlines to Res.string.settings_playback_ass_override_colors,
+        AssOverrideMode.ForceFullOverride to Res.string.settings_playback_ass_override_force,
+    )
 
+    DialogSurface(
+        onDismissRequest = onDismiss,
+        title = stringResource(Res.string.settings_playback_ass_override_mode),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            options.forEach { (mode, labelRes) ->
+                DialogOption(
+                    text = stringResource(labelRes),
+                    selected = mode == selectedMode,
+                    onClick = { onModeSelected(mode) },
+                )
+            }
+        }
+
+        DialogButtons {
+            DialogButton(
+                text = stringResource(Res.string.action_done),
+                onClick = onDismiss,
+            )
+        }
+    }
+}
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)

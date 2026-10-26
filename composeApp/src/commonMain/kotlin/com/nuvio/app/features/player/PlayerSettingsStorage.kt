@@ -55,6 +55,8 @@ internal expect object PlayerSettingsStorage {
     fun saveSubtitleBold(enabled: Boolean)
     fun loadSubtitleFontSizeSp(): Int?
     fun saveSubtitleFontSizeSp(fontSizeSp: Int)
+    fun loadSubtitleScalePercent(): Int?
+    fun saveSubtitleScalePercent(scalePercent: Int)
     fun loadSubtitleBottomOffset(): Int?
     fun saveSubtitleBottomOffset(bottomOffset: Int)
     fun loadSubtitleStripSdh(): Boolean?
@@ -63,6 +65,8 @@ internal expect object PlayerSettingsStorage {
     fun saveSubtitleUseForcedSubtitles(enabled: Boolean)
     fun loadSubtitleShowOnlyPreferredLanguages(): Boolean?
     fun saveSubtitleShowOnlyPreferredLanguages(enabled: Boolean)
+    fun loadSubAssOverride(): String?
+    fun saveSubAssOverride(mode: String)
     fun loadStreamReuseLastLinkEnabled(): Boolean?
     fun saveStreamReuseLastLinkEnabled(enabled: Boolean)
     fun loadStreamReuseLastLinkCacheHours(): Int?

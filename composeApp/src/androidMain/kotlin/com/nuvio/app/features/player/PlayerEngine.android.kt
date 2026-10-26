@@ -397,6 +397,7 @@ private fun ExoPlayerSurface(
             videoBoundsFractionProvider = {
                 playerViewRef?.videoBoundsFraction(latestVideoAspectRatio.value)
             },
+            subtitleScaleProvider = { currentSubtitleStyle.scalePercent / 100f },
         )
             .setExtensionRendererMode(effectiveDecoderPriority)
             .setEnableDecoderFallback(true)
@@ -1752,16 +1753,43 @@ private class NuvioLibmpvView(
 
             override fun applySubtitleStyle(style: SubtitleStyleState) {
                 executeMpv {
-                    mpv.setPropertyString("sub-ass-override", "no")
+                    // "Preserve" is a complete no-op: leave ASS/SSA scripts (and mpv's own
+                    // defaults for plain SRT/VTT) exactly as authored, and undo anything a
+                    // previously selected override mode may have applied.
+                    if (style.subAssOverride == AssOverrideMode.Preserve) {
+                        mpv.resetSubtitleStyleOverrides()
+                        return@executeMpv
+                    }
+                    val fontSize = style.toMpvSubtitleFontSize()
+                    // Full mpv parity with PlayTorrioV3: honour the user's ASS/SSA script
+                    // override mode and, when overriding, inject the forced style payload.
+                    mpv.setPropertyString("sub-ass-override", style.subAssOverride.mpvValue)
+                    mpv.setPropertyString("sub-ass-force-margins", "yes")
+                    mpv.setPropertyString("sub-use-margins", "yes")
+                    // Force-style payload for the active override mode.
+                    mpv.setPropertyString("sub-ass-force-style", buildAssForceStyleString(style, fontSize))
+                    // Opaque background draws one box per line: fill goes through the outline colour
+                    // and back-colour stays transparent so boxes don't stack (Telegram iOS parity).
+                    val boxColor = if (style.isBackgroundBoxed()) style.backgroundColor else style.outlineColor
                     mpv.setPropertyString("sub-color", style.textColor.toMpvColor())
-                    mpv.setPropertyString("sub-back-color", style.backgroundColor.toMpvColor())
-                    mpv.setPropertyString("sub-outline-color", style.outlineColor.toMpvColor())
-                    mpv.setPropertyString("sub-border-color", style.outlineColor.toMpvColor())
+                    mpv.setPropertyString(
+                        "sub-back-color",
+                        if (style.isBackgroundBoxed()) "#00000000" else style.backgroundColor.toMpvColor(),
+                    )
+                    mpv.setPropertyString("sub-outline-color", boxColor.toMpvColor())
+                    mpv.setPropertyString("sub-border-color", boxColor.toMpvColor())
                     mpv.setPropertyString("sub-border-style", style.toMpvSubtitleBorderStyle())
+                    val boxed = style.isBackgroundBoxed()
+                    mpv.setPropertyString("sub-line-spacing", if (boxed) "9" else "0")
+                    mpv.setPropertyString("sub-shadow-offset", if (boxed) "1.3" else "0")
                     mpv.setPropertyString("sub-bold", if (style.bold) "yes" else "no")
-                    mpv.setPropertyInt("sub-font-size", style.toMpvSubtitleFontSize())
-                    mpv.setPropertyInt("sub-outline-size", style.toMpvSubtitleOutlineSize())
-                    mpv.setPropertyInt("sub-border-size", style.toMpvSubtitleOutlineSize())
+                    mpv.setPropertyInt("sub-font-size", fontSize)
+                    // Separate multiplier (PlayTorrio parity): scales text and ASS subs without
+                    // touching the base font size used by the force-style payload.
+                    mpv.setPropertyString("sub-scale", (style.scalePercent / 100.0).toString())
+                    val outlineSize = if (style.isBackgroundBoxed()) 3 else style.toMpvSubtitleOutlineSize()
+                    mpv.setPropertyInt("sub-outline-size", outlineSize)
+                    mpv.setPropertyInt("sub-border-size", outlineSize)
                     mpv.setPropertyInt("sub-pos", (100 - style.bottomOffset / 10).coerceIn(0, 100))
                     mpv.setPropertyBoolean("sub-filter-sdh", style.stripSdh)
                     mpv.setPropertyBoolean("sub-filter-sdh-harder", style.stripSdh)
@@ -1929,14 +1957,40 @@ private fun SubtitleStyleState.toMpvSubtitleFontSize(): Int =
 private fun SubtitleStyleState.toMpvSubtitleOutlineSize(): Int =
     if (!outlineEnabled) 0 else (outlineWidth * MPV_SUBTITLE_OUTLINE_SIZE_SCALE).toInt().coerceAtLeast(1)
 
+private fun SubtitleStyleState.isBackgroundBoxed(): Boolean = backgroundColor.alphaByte() > 0
+
 private fun SubtitleStyleState.toMpvSubtitleBorderStyle(): String =
-    if (outlineEnabled) {
-        "outline-and-shadow"
-    } else if (backgroundColor.alphaByte() > 0) {
-        "opaque-box"
-    } else {
-        "outline-and-shadow"
-    }
+    if (isBackgroundBoxed()) "opaque-box" else "outline-and-shadow"
+
+/**
+ * Restore mpv's built-in subtitle style defaults so that selecting
+ * [AssOverrideMode.Preserve] truly behaves like no override at all — it also
+ * clears any styling left behind by a previously active override mode, so the
+ * authored ASS/SSA layout (and mpv's own look for plain SRT/VTT) wins again.
+ */
+private fun MPV.resetSubtitleStyleOverrides() {
+    setPropertyString("sub-ass-override", AssOverrideMode.Preserve.mpvValue)
+    // Drop any forced style / forced margins so the authored script layout wins.
+    setPropertyString("sub-ass-force-style", "")
+    setPropertyString("sub-ass-force-margins", "no")
+    setPropertyString("sub-use-margins", "yes")
+    // mpv defaults for the options the override modes mutate.
+    setPropertyString("sub-color", "#FFFFFFFF")
+    setPropertyString("sub-back-color", "#FF000000")
+    setPropertyString("sub-outline-color", "#FF000000")
+    setPropertyString("sub-border-color", "#FF000000")
+    setPropertyString("sub-border-style", "outline-and-shadow")
+    setPropertyString("sub-line-spacing", "0")
+    setPropertyString("sub-shadow-offset", "0")
+    setPropertyString("sub-bold", "no")
+    setPropertyInt("sub-font-size", 55)
+    setPropertyString("sub-scale", "1.0")
+    setPropertyInt("sub-outline-size", 3)
+    setPropertyInt("sub-border-size", 3)
+    setPropertyInt("sub-pos", 100)
+    setPropertyBoolean("sub-filter-sdh", false)
+    setPropertyBoolean("sub-filter-sdh-harder", false)
+}
 
 private const val MPV_SUBTITLE_FONT_SIZE_SCALE = 55.0 / 18.0
 private const val MPV_SUBTITLE_FONT_SIZE_MIN = 36
@@ -2163,8 +2217,14 @@ private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipVideoHei
         val offsetFraction = (style.bottomOffset / 1000f).coerceIn(0f, 0.2f)
         val bottomPaddingFraction = (baseBottomPaddingFraction + offsetFraction).coerceIn(0f, 0.4f)
 
-        setApplyEmbeddedStyles(false)
-        setApplyEmbeddedFontSizes(false)
+        // Best-effort mapping of mpv's sub-ass-override onto the ExoPlayer SubtitleView:
+        // the peerless libass overlay always uses embedded ASS styling (there is no
+        // style-override API), so this only affects non-ASS cues rendered by SubtitleView.
+        // Preserve / ScaleOnly keep authored styling; the override modes disable it and
+        // apply the user's CaptionStyleCompat instead.
+        val preserveEmbedded = style.subAssOverride == AssOverrideMode.Preserve ||
+            style.subAssOverride == AssOverrideMode.ScaleOnly
+
         setBottomPaddingFraction(bottomPaddingFraction)
         setStyle(
             CaptionStyleCompat(
@@ -2387,6 +2447,7 @@ private class SubtitleOffsetRenderersFactory(
     private val subtitleDelayUsProvider: () -> Long,
     private val shouldNormalizeCuePositionProvider: () -> Boolean,
     private val shouldStripSdhProvider: () -> Boolean,
+    private val subtitleScaleProvider: () -> Float,
     private val videoBoundsFractionProvider: () -> RectF?,
 ) : DefaultRenderersFactory(context) {
     override fun buildTextRenderers(
@@ -2400,6 +2461,7 @@ private class SubtitleOffsetRenderersFactory(
             delegate = output,
             shouldNormalizeCuePositionProvider = shouldNormalizeCuePositionProvider,
             shouldStripSdhProvider = shouldStripSdhProvider,
+            subtitleScaleProvider = subtitleScaleProvider,
             videoBoundsFractionProvider = videoBoundsFractionProvider,
         )
         val startIndex = out.size
@@ -2416,6 +2478,7 @@ private class SubtitleOffsetRenderersFactory(
 private class CueNormalizingTextOutput(
     private val delegate: TextOutput,
     private val shouldNormalizeCuePositionProvider: () -> Boolean,
+    private val subtitleScaleProvider: () -> Float,
     private val shouldStripSdhProvider: () -> Boolean,
     private val videoBoundsFractionProvider: () -> RectF?,
 ) : TextOutput {
@@ -2449,6 +2512,14 @@ private class CueNormalizingTextOutput(
                 if (!isIdentity) {
                     processed = remapBitmapCueToVideoBounds(processed, bounds)
                 }
+            }
+            // Scale every bitmap cue (PGS/DVD), including the common fullscreen
+            // (identity-bounds) case — this must run outside the bounds check above.
+            val scale = subtitleScaleProvider()
+            if (scale != 1f && processed.bitmapHeight != Cue.DIMEN_UNSET) {
+                processed = processed.buildUpon()
+                    .setBitmapHeight(processed.bitmapHeight * scale)
+                    .build()
             }
         }
         return processed

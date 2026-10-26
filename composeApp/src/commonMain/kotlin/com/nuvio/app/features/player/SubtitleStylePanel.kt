@@ -37,11 +37,17 @@ import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_action_off
 import nuvio.composeapp.generated.resources.compose_action_on
 import nuvio.composeapp.generated.resources.compose_player_auto_sync
+import nuvio.composeapp.generated.resources.compose_player_ass_override
+import nuvio.composeapp.generated.resources.compose_player_ass_override_colors
+import nuvio.composeapp.generated.resources.compose_player_ass_override_force
+import nuvio.composeapp.generated.resources.compose_player_ass_override_preserve
+import nuvio.composeapp.generated.resources.compose_player_ass_override_scale
 import nuvio.composeapp.generated.resources.compose_player_bold
 import nuvio.composeapp.generated.resources.compose_player_bottom_offset
 import nuvio.composeapp.generated.resources.compose_player_capture_line
 import nuvio.composeapp.generated.resources.compose_player_color
 import nuvio.composeapp.generated.resources.compose_player_font_size
+import nuvio.composeapp.generated.resources.compose_player_background_opacity
 import nuvio.composeapp.generated.resources.compose_player_font_size_value
 import nuvio.composeapp.generated.resources.compose_player_loading_lines
 import nuvio.composeapp.generated.resources.compose_player_no_subtitle_lines_found
@@ -53,6 +59,8 @@ import nuvio.composeapp.generated.resources.compose_player_reset_defaults
 import nuvio.composeapp.generated.resources.compose_player_select_addon_subtitle_first
 import nuvio.composeapp.generated.resources.compose_player_style
 import nuvio.composeapp.generated.resources.compose_player_subtitle_delay
+import nuvio.composeapp.generated.resources.compose_player_subtitle_scale
+import nuvio.composeapp.generated.resources.compose_player_subtitle_scale_value
 import nuvio.composeapp.generated.resources.compose_player_text_opacity
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
@@ -119,6 +127,18 @@ fun SubtitleStylePanel(
             )
         }
 
+        SubtitleStyleSection(title = stringResource(Res.string.compose_player_subtitle_scale)) {
+            SubtitleStyleStepper(
+                value = stringResource(Res.string.compose_player_subtitle_scale_value, style.scalePercent),
+                onDecrease = {
+                    onStyleChanged(style.copy(scalePercent = (style.scalePercent - 10).coerceAtLeast(subtitleScalePercentRange.first)))
+                },
+                onIncrease = {
+                    onStyleChanged(style.copy(scalePercent = (style.scalePercent + 10).coerceAtMost(subtitleScalePercentRange.last)))
+                },
+            )
+        }
+
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_bold)) {
             SubtitleToggleChip(
                 enabled = style.bold,
@@ -147,6 +167,21 @@ fun SubtitleStylePanel(
                 onIncrease = {
                     val alpha = (opacity + 10).coerceAtMost(100) / 100f
                     onStyleChanged(style.copy(textColor = style.textColor.copy(alpha = alpha)))
+                },
+            )
+        }
+
+        SubtitleStyleSection(title = stringResource(Res.string.compose_player_background_opacity)) {
+            val opacity = (style.backgroundColor.alpha * 100f).roundToInt().coerceIn(0, 100)
+            SubtitleStyleStepper(
+                value = "$opacity%",
+                onDecrease = {
+                    val alpha = (opacity - 10).coerceAtLeast(0) / 100f
+                    onStyleChanged(style.copy(backgroundColor = style.backgroundColor.copy(alpha = alpha)))
+                },
+                onIncrease = {
+                    val alpha = (opacity + 10).coerceAtMost(100) / 100f
+                    onStyleChanged(style.copy(backgroundColor = style.backgroundColor.copy(alpha = alpha)))
                 },
             )
         }
@@ -181,6 +216,29 @@ fun SubtitleStylePanel(
                     onStyleChanged(style.copy(bottomOffset = (style.bottomOffset + 5).coerceAtMost(200)))
                 },
             )
+        }
+
+        SubtitleStyleSection(title = stringResource(Res.string.compose_player_ass_override)) {
+            val modes = listOf(
+                AssOverrideMode.Preserve to Res.string.compose_player_ass_override_preserve,
+                AssOverrideMode.ScaleOnly to Res.string.compose_player_ass_override_scale,
+                AssOverrideMode.OverrideColorsAndOutlines to Res.string.compose_player_ass_override_colors,
+                AssOverrideMode.ForceFullOverride to Res.string.compose_player_ass_override_force,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                modes.forEach { (mode, labelRes) ->
+                    SubtitleModeChip(
+                        label = stringResource(labelRes),
+                        selected = style.subAssOverride == mode,
+                        onClick = { onStyleChanged(style.copy(subAssOverride = mode)) },
+                    )
+                }
+            }
         }
 
         SubtitleAutoSyncSection(
@@ -296,6 +354,31 @@ private fun SubtitleToggleChip(
             },
             color = if (enabled) tokens.colors.onAccent else Color.White,
             style = MaterialTheme.typography.labelLarge,
+        )
+    }
+}
+
+@Composable
+private fun SubtitleModeChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val tokens = MaterialTheme.nuvio
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) tokens.colors.accent else Color.White.copy(alpha = 0.08f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = label,
+            color = if (selected) tokens.colors.onAccent else Color.White,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
